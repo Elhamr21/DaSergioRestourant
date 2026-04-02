@@ -83,16 +83,15 @@ export function Hero() {
     <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Video Background */}
       <div className="absolute inset-0 z-0">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover"
-          poster="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/WhatsApp%20Image%202026-03-31%20at%2016.15.08%20%281%29-HrFQInVBLptKz9NshSdefnIj5vMDuB.jpeg"
-        >
-          <source src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/19120193-uhd_3840_2160_25fps%20%281%29-PsUdS1OH4cSOKFazvdzena4kdXeY2B.mp4" type="video/mp4" />
-        </video>
+<video
+  autoPlay
+  loop
+  muted
+  playsInline
+  className="w-full h-full object-cover"
+>
+  <source src="/videos/back.mp4" type="video/mp4" />
+</video>
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-deep-green/90" />
         <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black/50" />
