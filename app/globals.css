@@ -1,0 +1,222 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Da Sergio Brand Colors */
+  --gold: #e2b15c;
+  --gold-dark: #c99a47;
+  --deep-green: #18312E;
+  --deep-green-dark: #152C29;
+  --gray-text: #a7a7a7;
+  --decorative: #5E6F6D;
+  
+  /* Semantic tokens */
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --card: #18312E;
+  --card-foreground: #ffffff;
+  --popover: #18312E;
+  --popover-foreground: #ffffff;
+  --primary: #e2b15c;
+  --primary-foreground: #0a0a0a;
+  --secondary: #152C29;
+  --secondary-foreground: #ffffff;
+  --muted: #5E6F6D;
+  --muted-foreground: #a7a7a7;
+  --accent: #e2b15c;
+  --accent-foreground: #0a0a0a;
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: #ffffff;
+  --border: #2a4a45;
+  --input: #2a4a45;
+  --ring: #e2b15c;
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --font-sans: 'Urbanist', sans-serif;
+  --font-serif: 'Fraunces', serif;
+  --font-mono: 'Geist Mono', monospace;
+  --color-gold: var(--gold);
+  --color-gold-dark: var(--gold-dark);
+  --color-deep-green: var(--deep-green);
+  --color-deep-green-dark: var(--deep-green-dark);
+  --color-gray-text: var(--gray-text);
+  --color-decorative: var(--decorative);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--deep-green-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gold);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dark);
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(24, 49, 46, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Book flip animation */
+@keyframes book-open {
+  0% {
+    transform: perspective(1000px) rotateY(-90deg);
+    opacity: 0;
+  }
+  100% {
+    transform: perspective(1000px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes book-close {
+  0% {
+    transform: perspective(1000px) rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(1000px) rotateY(90deg);
+    opacity: 0;
+  }
+}
+
+.book-open {
+  animation: book-open 0.5s ease-out forwards;
+  transform-origin: left center;
+}
+
+.book-close {
+  animation: book-close 0.5s ease-in forwards;
+  transform-origin: left center;
+}
+
+/* Floating particles */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-100px) translateX(20px);
+    opacity: 0.3;
+  }
+  90% {
+    opacity: 0.1;
+  }
+}
+
+.particle {
+  animation: float 8s ease-in-out infinite;
+}
+
+/* Star animation */
+@keyframes star-stamp {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(0deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.star-animate {
+  animation: star-stamp 0.4s ease-out forwards;
+}
+
+/* Smooth section scrolling - use data attribute for Next.js compatibility */
+html[data-scroll-behavior="smooth"] {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background: var(--gold);
+  color: var(--deep-green);
+}
+
+/* Perspective for 3D transforms */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+/* Wine color for buttons */
+:root {
+  --wine: #722F37;
+  --wine-dark: #5a252c;
+  --gold-light: #f0c97a;
+}
+
+@theme inline {
+  --color-wine: var(--wine);
+  --color-wine-dark: var(--wine-dark);
+  --color-gold-light: var(--gold-light);
+}
+
+/* Thin scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--gold);
+  border-radius: 2px;
+}
