@@ -155,24 +155,35 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-border pt-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-gray-text text-sm text-center md:text-left">
-              &copy; {new Date().getFullYear()} Da Sergio - Restaurant & Pizzeria. Alle Rechte vorbehalten.
-            </p>
-            <p className="text-gray-text text-sm">
-              Realisiert von{' '}
-              <a
-                href="https://ictfive.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gold hover:text-gold-dark transition-colors"
-              >
-                ictfive
-              </a>
-            </p>
-          </div>
-        </div>
+<div className="border-t border-border pt-8">
+  <div className="flex flex-col md:flex-row items-center justify-between text-sm text-gray-text">
+    {/* Left */}
+    <p className="text-gray-text">
+      &copy; {new Date().getFullYear()} Da Sergio - Restaurant & Pizzeria. Alle Rechte vorbehalten.
+    </p>
+
+    {/* Center*/}
+    <p className="text-gray-text md:mx-4">
+      Developed By{' '}
+      <a
+        href="https://clearline-ai.tech/en"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-gold hover:text-gold-dark transition-colors"
+      >
+        ClearLineTech
+      </a>
+    </p>
+
+    {/* Right */}
+    <button
+      onClick={() => scrollToSection('/impressum')}
+      className="text-gray-text text-gold hover:text-gold-dark transition-colors"
+    >
+      Impressum
+    </button>
+  </div>
+</div>
       </div>
     </footer>
   )
