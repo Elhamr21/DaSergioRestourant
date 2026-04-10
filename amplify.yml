@@ -4,14 +4,10 @@ backend:
     build:
       commands:
         - nvm use 20
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+        - npm ci
+        - npx ampx generate outputs --branch $AWS_BRANCH --app-id $AWS_APP_ID
 frontend:
   phases:
-    preBuild:
-      commands:
-        - nvm use 20
-        - npx ampx generate outputs --branch $AWS_BRANCH --app-id $AWS_APP_ID
-        - npm ci
     build:
       commands:
         - npm run build
