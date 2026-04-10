@@ -101,7 +101,7 @@ export function ContactSection() {
         guests: Number(formData.guests),
         message: formData.message.trim() || undefined,
         status: 'PENDING',
-      })
+      }, { authMode: 'identityPool' })
       if (gqlErrors?.length) throw new Error(gqlErrors[0].message)
       setIsSuccess(true)
       setTimeout(() => {
