@@ -1,6 +1,5 @@
 'use client'
 
-import '@/lib/amplify-configure'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, Phone, Mail, Clock, Check, AlertCircle, Send } from 'lucide-react'
