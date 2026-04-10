@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { Urbanist, Fraunces } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { AmplifyProvider } from '@/components/amplify-provider'
 import './globals.css'
 
@@ -46,7 +45,7 @@ export default function RootLayout({
         <AmplifyProvider>
           {children}
         </AmplifyProvider>
-        <Analytics />
+
       </body>
     </html>
   )
