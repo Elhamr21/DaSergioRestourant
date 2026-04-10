@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Urbanist, Fraunces } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { AmplifyProvider } from '@/components/amplify-provider'
 import './globals.css'
 
 const urbanist = Urbanist({ 
@@ -42,7 +43,9 @@ export default function RootLayout({
   return (
     <html lang="de" data-scroll-behavior="smooth" className={`${urbanist.variable} ${fraunces.variable}`}>
       <body className="font-sans antialiased bg-background text-foreground">
-        {children}
+        <AmplifyProvider>
+          {children}
+        </AmplifyProvider>
         <Analytics />
       </body>
     </html>

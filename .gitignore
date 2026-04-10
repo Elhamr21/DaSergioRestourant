@@ -14,3 +14,8 @@ next.user-config.*
 node_modules
 .next/
 .DS_Store
+
+# Amplify Gen 2
+amplify_outputs.json
+amplify_outputs.*
+.amplify/
