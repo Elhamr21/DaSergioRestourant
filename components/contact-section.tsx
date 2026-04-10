@@ -108,7 +108,8 @@ export function ContactSection() {
         setIsSuccess(false)
         setFormData({ name: '', email: '', phone: '', guests: '', date: '', time: '', message: '' })
       }, 5000)
-    } catch {
+    } catch (err) {
+      console.error('Reservation error:', err)
       setSubmitError('Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.')
     } finally {
       setIsSubmitting(false)
