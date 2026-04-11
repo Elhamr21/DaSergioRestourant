@@ -3,32 +3,8 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 
 const ses = new SESClient({})
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@da-sergio-restaurant.de'
-const RESERVATION_COPY_EMAILS = uniqueEmails(
-  (process.env.RESERVATION_COPY_EMAIL || 'herolind01110000@gmail.com').split(',')
-)
-const ADMIN_EMAILS = uniqueEmails(
-  (process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de').split(',')
-).filter(email =>
-  !RESERVATION_COPY_EMAILS.some(copyEmail => copyEmail.toLowerCase() === email.toLowerCase())
-)
-
-type SendEmailOptions = {
-  replyTo?: string[]
-  bcc?: string[]
-}
-
-function uniqueEmails(emails: string[]): string[] {
-  const seen = new Set<string>()
-  return emails
-    .map(email => email.trim())
-    .filter(email => email.length > 0)
-    .filter(email => {
-      const normalized = email.toLowerCase()
-      if (seen.has(normalized)) return false
-      seen.add(normalized)
-      return true
-    })
-}
+const COPY_EMAIL = process.env.RESERVATION_COPY_EMAIL || 'herolind01110000@gmail.com'
+const ADMIN_EMAIL = process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de'
 
 function sanitize(s?: string | null): string {
   return (s ?? '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c] || c))
@@ -36,15 +12,6 @@ function sanitize(s?: string | null): string {
 
 function isEmailLike(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
-
-function emailsExcluding(emails: string[], excludedEmails: string[]): string[] {
-  const excluded = new Set(uniqueEmails(excludedEmails).map(email => email.toLowerCase()))
-  return uniqueEmails(emails).filter(email => !excluded.has(email.toLowerCase()))
-}
-
-function copyEmailsFor(existingRecipients: string[] = []): string[] {
-  return emailsExcluding(RESERVATION_COPY_EMAILS, existingRecipients)
 }
 
 function wait(ms: number): Promise<void> {
@@ -69,34 +36,25 @@ function isRetryableEmailError(err: unknown): boolean {
     || text.includes('temporarily')
 }
 
-async function sendEmail(to: string[], subject: string, body: string, options: SendEmailOptions = {}): Promise<boolean> {
-  const toAddresses = uniqueEmails(to)
-  const bccAddresses = emailsExcluding(options.bcc ?? [], toAddresses)
-
-  if (!toAddresses.length && !bccAddresses.length) return true
-
+async function sendSingleEmail(to: string, subject: string, body: string, replyTo?: string): Promise<boolean> {
   const maxAttempts = 3
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await ses.send(new SendEmailCommand({
         Source: FROM_EMAIL,
-        Destination: {
-          ToAddresses: toAddresses.length ? toAddresses : undefined,
-          BccAddresses: bccAddresses.length ? bccAddresses : undefined,
-        },
-        ReplyToAddresses: options.replyTo,
+        Destination: { ToAddresses: [to] },
+        ReplyToAddresses: replyTo ? [replyTo] : undefined,
         Message: {
           Subject: { Data: subject },
           Body: { Html: { Data: body } },
         },
       }))
-      console.info('Email send accepted:', JSON.stringify({ to: toAddresses, bcc: bccAddresses, subject, attempt }))
+      console.info('Email sent successfully:', JSON.stringify({ to, subject, attempt }))
       return true
     } catch (err) {
       const retryable = isRetryableEmailError(err)
       console.error('Email send failed:', JSON.stringify({
-        to: toAddresses,
-        bcc: bccAddresses,
+        to,
         subject,
         attempt,
         retryable,
@@ -111,24 +69,34 @@ async function sendEmail(to: string[], subject: string, body: string, options: S
   return false
 }
 
-async function sendEmailWithCopy(to: string[], subject: string, body: string, options: SendEmailOptions = {}) {
-  const copyEmails = copyEmailsFor([...(to ?? []), ...(options.bcc ?? [])])
-  const bcc = uniqueEmails([...(options.bcc ?? []), ...copyEmails])
-  const sentWithCopy = await sendEmail(to, subject, body, { ...options, bcc })
-
-  if (sentWithCopy) return
-
-  console.warn('Email with reservation copy failed; retrying recipients separately:', JSON.stringify({ to, copyEmails, subject }))
-  const fallbackOptions = { ...options, bcc: undefined }
-  await sendEmail(to, subject, body, fallbackOptions)
-
-  for (const copyEmail of copyEmails) {
-    await sendEmail([copyEmail], subject, body, fallbackOptions)
+// Send email to client
+async function sendToClient(clientEmail: string, subject: string, body: string): Promise<void> {
+  const sent = await sendSingleEmail(clientEmail, subject, body)
+  if (sent) {
+    console.info('Client email sent to:', clientEmail)
+  } else {
+    console.error('Failed to send client email to:', clientEmail)
   }
 }
 
-async function sendClientEmail(to: string, subject: string, body: string) {
-  await sendEmailWithCopy([to], subject, body)
+// Send copy email to herolind01110000@gmail.com
+async function sendCopyEmail(subject: string, body: string, replyTo?: string): Promise<void> {
+  const sent = await sendSingleEmail(COPY_EMAIL, subject, body, replyTo)
+  if (sent) {
+    console.info('Copy email sent to:', COPY_EMAIL)
+  } else {
+    console.error('Failed to send copy email to:', COPY_EMAIL)
+  }
+}
+
+// Send admin notification email
+async function sendToAdmin(subject: string, body: string, replyTo?: string): Promise<void> {
+  const sent = await sendSingleEmail(ADMIN_EMAIL, subject, body, replyTo)
+  if (sent) {
+    console.info('Admin email sent to:', ADMIN_EMAIL)
+  } else {
+    console.error('Failed to send admin email to:', ADMIN_EMAIL)
+  }
 }
 
 export const handler = async (event: DynamoDBStreamEvent) => {
@@ -150,34 +118,47 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     if (!email) continue
 
     if (record.eventName === 'INSERT') {
-      await sendEmailWithCopy(ADMIN_EMAILS, 'Neue Reservierungsanfrage',
-        `<h2>Neue Reservierung</h2>
+      const adminBody = `<h2>Neue Reservierung</h2>
         <p><b>${name}</b> — ${date} um ${time}, ${guests} Personen</p>
         <p>E-Mail: ${sanitize(email)}</p>
         ${phone ? `<p>Telefon: ${phone}</p>` : ''}
-        ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`,
-        { replyTo: isEmailLike(email) ? [email] : undefined })
+        ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`
+      
+      const clientReplyTo = isEmailLike(email) ? email : undefined
 
-      await sendClientEmail(email, 'Ihre Reservierungsanfrage bei Da Sergio',
-        `<h2>Vielen Dank, ${name}!</h2>
+      // Email 1: Send to admin
+      await sendToAdmin('Neue Reservierungsanfrage', adminBody, clientReplyTo)
+
+      // Email 2: Send copy to herolind01110000@gmail.com
+      await sendCopyEmail('Neue Reservierungsanfrage (Kopie)', adminBody, clientReplyTo)
+
+      // Email 3: Send confirmation to client
+      const clientBody = `<h2>Vielen Dank, ${name}!</h2>
         <p>Wir haben Ihre Anfrage erhalten:</p>
         <p>${date} um ${time} für ${guests} Personen</p>
-        <p>Wir melden uns in Kürze.</p>`)
+        <p>Wir melden uns in Kürze.</p>`
+      
+      await sendToClient(email, 'Ihre Reservierungsanfrage bei Da Sergio', clientBody)
     }
 
     if (record.eventName === 'MODIFY' && newStatus !== oldStatus) {
       if (newStatus === 'CONFIRMED') {
-        await sendClientEmail(email, 'Reservierung bestätigt – Da Sergio',
-          `<h2>Reservierung bestätigt!</h2>
+        const body = `<h2>Reservierung bestätigt!</h2>
           <p>Liebe/r ${name},</p>
           <p>Ihre Reservierung am ${date} um ${time} für ${guests} Personen ist bestätigt.</p>
-          <p>Wir freuen uns auf Sie!</p>`)
+          <p>Wir freuen uns auf Sie!</p>`
+        
+        await sendToClient(email, 'Reservierung bestätigt – Da Sergio', body)
+        await sendCopyEmail('Reservierung bestätigt (Kopie) – Da Sergio', body)
+
       } else if (newStatus === 'REJECTED') {
-        await sendClientEmail(email, 'Reservierung abgelehnt – Da Sergio',
-          `<h2>Reservierung abgelehnt</h2>
+        const body = `<h2>Reservierung abgelehnt</h2>
           <p>Liebe/r ${name},</p>
           <p>Leider können wir Ihre Anfrage am ${date} um ${time} nicht bestätigen.</p>
-          <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`)
+          <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
+        
+        await sendToClient(email, 'Reservierung abgelehnt – Da Sergio', body)
+        await sendCopyEmail('Reservierung abgelehnt (Kopie) – Da Sergio', body)
       }
     }
   }
