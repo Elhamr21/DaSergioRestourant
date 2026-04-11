@@ -3,17 +3,39 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 
 const ses = new SESClient({})
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@da-sergio-restaurant.de'
-const ADMIN_EMAILS = (process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de').split(',')
+const RESERVATION_COPY_EMAIL = 'Bdeda326@gmail.com'
+const ADMIN_EMAILS = uniqueEmails([
+  ...(process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de').split(','),
+  RESERVATION_COPY_EMAIL,
+])
+
+function uniqueEmails(emails: string[]): string[] {
+  const seen = new Set<string>()
+  return emails
+    .map(email => email.trim())
+    .filter(email => email.length > 0)
+    .filter(email => {
+      const normalized = email.toLowerCase()
+      if (seen.has(normalized)) return false
+      seen.add(normalized)
+      return true
+    })
+}
 
 function sanitize(s?: string | null): string {
   return (s ?? '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c] || c))
 }
 
-async function sendEmail(to: string[], subject: string, body: string) {
+function isEmailLike(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+async function sendEmail(to: string[], subject: string, body: string, replyTo?: string[]) {
   try {
     await ses.send(new SendEmailCommand({
       Source: FROM_EMAIL,
       Destination: { ToAddresses: to },
+      ReplyToAddresses: replyTo,
       Message: {
         Subject: { Data: subject },
         Body: { Html: { Data: body } },
@@ -31,10 +53,11 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     if (!newImg) continue
 
     const name = sanitize(newImg.name?.S)
-    const email = newImg.email?.S
-    const date = newImg.date?.S
-    const time = newImg.time?.S
-    const guests = newImg.guests?.N
+    const email = newImg.email?.S?.trim()
+    const phone = sanitize(newImg.phone?.S)
+    const date = sanitize(newImg.date?.S)
+    const time = sanitize(newImg.time?.S)
+    const guests = sanitize(newImg.guests?.N)
     const message = newImg.message?.S
     const newStatus = newImg.status?.S
     const oldStatus = oldImg?.status?.S
@@ -46,7 +69,9 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         `<h2>Neue Reservierung</h2>
         <p><b>${name}</b> — ${date} um ${time}, ${guests} Personen</p>
         <p>E-Mail: ${sanitize(email)}</p>
-        ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`)
+        ${phone ? `<p>Telefon: ${phone}</p>` : ''}
+        ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`,
+        isEmailLike(email) ? [email] : undefined)
 
       await sendEmail([email], 'Ihre Reservierungsanfrage bei Da Sergio',
         `<h2>Vielen Dank, ${name}!</h2>

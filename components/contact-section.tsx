@@ -8,8 +8,6 @@ import { generateClient } from 'aws-amplify/data'
 import type { Schema } from '@/amplify/data/resource'
 import { TIME_SLOTS, reservationSchema } from '@/lib/validation/reservation'
 
-const guestOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
-
 interface FormData {
   name: string
   email: string
@@ -271,12 +269,8 @@ export function ContactSection() {
                     {/* Guests */}
                     <div>
                       <label htmlFor="guests" className="block text-sm font-medium text-foreground mb-2">Anzahl Personen *</label>
-                      <select id="guests" name="guests" value={formData.guests} onChange={handleChange} className={inputClass('guests')}>
-                        <option value="">Bitte wählen</option>
-                        {guestOptions.map(opt => (
-                          <option key={opt} value={opt}>{opt} {opt === '1' ? 'Person' : 'Personen'}</option>
-                        ))}
-                      </select>
+                      <input type="number" id="guests" name="guests" value={formData.guests} onChange={handleChange}
+                        min="1" step="1" inputMode="numeric" className={inputClass('guests')} placeholder="Anzahl Personen" />
                       {errors.guests && <p className="text-red-500 text-sm mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.guests}</p>}
                     </div>
 
