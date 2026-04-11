@@ -12,6 +12,11 @@ const ADMIN_EMAILS = uniqueEmails(
   !RESERVATION_COPY_EMAILS.some(copyEmail => copyEmail.toLowerCase() === email.toLowerCase())
 )
 
+type SendEmailOptions = {
+  replyTo?: string[]
+  bcc?: string[]
+}
+
 function uniqueEmails(emails: string[]): string[] {
   const seen = new Set<string>()
   return emails
@@ -33,29 +38,42 @@ function isEmailLike(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-async function sendEmail(to: string[], subject: string, body: string, replyTo?: string[]) {
-  if (!to.length) return
+function copyEmailsFor(recipientEmail: string): string[] {
+  return RESERVATION_COPY_EMAILS.filter(
+    copyEmail => copyEmail.toLowerCase() !== recipientEmail.toLowerCase()
+  )
+}
+
+async function sendEmail(to: string[], subject: string, body: string, options: SendEmailOptions = {}): Promise<boolean> {
+  if (!to.length && !options.bcc?.length) return true
 
   try {
     await ses.send(new SendEmailCommand({
       Source: FROM_EMAIL,
-      Destination: { ToAddresses: to },
-      ReplyToAddresses: replyTo,
+      Destination: {
+        ToAddresses: to,
+        BccAddresses: options.bcc,
+      },
+      ReplyToAddresses: options.replyTo,
       Message: {
         Subject: { Data: subject },
         Body: { Html: { Data: body } },
       },
     }))
+    return true
   } catch (err) {
-    console.error('Email send failed:', JSON.stringify({ to, subject, error: String(err) }))
+    console.error('Email send failed:', JSON.stringify({ to, bcc: options.bcc ?? [], subject, error: String(err) }))
+    return false
   }
 }
 
 async function sendClientEmail(to: string, subject: string, body: string) {
-  await sendEmail([to], subject, body)
+  const bcc = copyEmailsFor(to)
+  const sent = await sendEmail([to], subject, body, { bcc })
 
-  if (RESERVATION_COPY_EMAILS.length) {
-    await sendEmail(RESERVATION_COPY_EMAILS, subject, body)
+  if (!sent && bcc.length) {
+    await sendEmail([to], subject, body)
+    await sendEmail(bcc, subject, body)
   }
 }
 
@@ -84,7 +102,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         <p>E-Mail: ${sanitize(email)}</p>
         ${phone ? `<p>Telefon: ${phone}</p>` : ''}
         ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`,
-        isEmailLike(email) ? [email] : undefined)
+        { replyTo: isEmailLike(email) ? [email] : undefined })
 
       await sendClientEmail(email, 'Ihre Reservierungsanfrage bei Da Sergio',
         `<h2>Vielen Dank, ${name}!</h2>
