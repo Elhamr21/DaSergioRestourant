@@ -3,7 +3,7 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 
 const ses = new SESClient({})
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@da-sergio-restaurant.de'
-const RESERVATION_COPY_EMAIL = 'Bdeda326@gmail.com'
+const RESERVATION_COPY_EMAIL = 'herolind01110000@gmail.com'
 const ADMIN_EMAILS = uniqueEmails([
   ...(process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de').split(','),
   RESERVATION_COPY_EMAIL,
