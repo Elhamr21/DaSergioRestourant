@@ -3,11 +3,14 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 
 const ses = new SESClient({})
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@da-sergio-restaurant.de'
-const RESERVATION_COPY_EMAIL = 'herolind01110000@gmail.com'
-const ADMIN_EMAILS = uniqueEmails([
-  ...(process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de').split(','),
-  RESERVATION_COPY_EMAIL,
-])
+const RESERVATION_COPY_EMAILS = uniqueEmails(
+  (process.env.RESERVATION_COPY_EMAIL || 'herolind01110000@gmail.com').split(',')
+)
+const ADMIN_EMAILS = uniqueEmails(
+  (process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de').split(',')
+).filter(email =>
+  !RESERVATION_COPY_EMAILS.some(copyEmail => copyEmail.toLowerCase() === email.toLowerCase())
+)
 
 function uniqueEmails(emails: string[]): string[] {
   const seen = new Set<string>()
@@ -31,6 +34,8 @@ function isEmailLike(email: string): boolean {
 }
 
 async function sendEmail(to: string[], subject: string, body: string, replyTo?: string[]) {
+  if (!to.length) return
+
   try {
     await ses.send(new SendEmailCommand({
       Source: FROM_EMAIL,
@@ -43,6 +48,14 @@ async function sendEmail(to: string[], subject: string, body: string, replyTo?: 
     }))
   } catch (err) {
     console.error('Email send failed:', JSON.stringify({ to, subject, error: String(err) }))
+  }
+}
+
+async function sendClientEmail(to: string, subject: string, body: string) {
+  await sendEmail([to], subject, body)
+
+  if (RESERVATION_COPY_EMAILS.length) {
+    await sendEmail(RESERVATION_COPY_EMAILS, subject, body)
   }
 }
 
@@ -73,7 +86,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`,
         isEmailLike(email) ? [email] : undefined)
 
-      await sendEmail([email], 'Ihre Reservierungsanfrage bei Da Sergio',
+      await sendClientEmail(email, 'Ihre Reservierungsanfrage bei Da Sergio',
         `<h2>Vielen Dank, ${name}!</h2>
         <p>Wir haben Ihre Anfrage erhalten:</p>
         <p>${date} um ${time} für ${guests} Personen</p>
@@ -82,13 +95,13 @@ export const handler = async (event: DynamoDBStreamEvent) => {
 
     if (record.eventName === 'MODIFY' && newStatus !== oldStatus) {
       if (newStatus === 'CONFIRMED') {
-        await sendEmail([email], 'Reservierung bestätigt – Da Sergio',
+        await sendClientEmail(email, 'Reservierung bestätigt – Da Sergio',
           `<h2>Reservierung bestätigt!</h2>
           <p>Liebe/r ${name},</p>
           <p>Ihre Reservierung am ${date} um ${time} für ${guests} Personen ist bestätigt.</p>
           <p>Wir freuen uns auf Sie!</p>`)
       } else if (newStatus === 'REJECTED') {
-        await sendEmail([email], 'Reservierung abgelehnt – Da Sergio',
+        await sendClientEmail(email, 'Reservierung abgelehnt – Da Sergio',
           `<h2>Reservierung abgelehnt</h2>
           <p>Liebe/r ${name},</p>
           <p>Leider können wir Ihre Anfrage am ${date} um ${time} nicht bestätigen.</p>

@@ -5,6 +5,7 @@ export const reservationEmailHandler = defineFunction({
   entry: './handler.ts',
   environment: {
     SES_FROM_EMAIL: 'noreply@da-sergio-restaurant.de',
-    SES_ADMIN_EMAILS: 'info@da-sergio-restaurant.de,herolind01110000@gmail.com',
+    SES_ADMIN_EMAILS: 'info@da-sergio-restaurant.de',
+    RESERVATION_COPY_EMAIL: 'herolind01110000@gmail.com',
   },
 })
