@@ -54,11 +54,6 @@ function MenuCard({ item, onClick }: { item: MenuItem; onClick: () => void }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-deep-green via-deep-green/20 to-transparent" />
         
-        {/* Price Badge */}
-        <div className="absolute top-3 right-3 bg-gold text-deep-green font-bold px-3 py-1 rounded-full text-sm">
-          {item.price.toFixed(2)}€
-        </div>
-
         {/* Dietary Icons */}
         <div className="absolute top-3 left-3 flex gap-2">
           {item.isVegetarian && (
@@ -168,11 +163,6 @@ function BookModal({ item, onClose }: { item: MenuItem; onClose: () => void }) {
               <p className="text-gray-text text-lg leading-relaxed mb-6">
                 {item.description}
               </p>
-
-              {/* Price */}
-              <div className="flex items-baseline gap-2 mb-6">
-                <span className="text-gold text-4xl font-bold">{item.price.toFixed(2)}€</span>
-              </div>
 
               {/* Dietary Info */}
               <div className="flex flex-wrap gap-3 mb-6">
