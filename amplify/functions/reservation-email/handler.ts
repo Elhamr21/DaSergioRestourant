@@ -3,7 +3,7 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 
 const ses = new SESClient({})
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@da-sergio-restaurant.de'
-const COPY_EMAIL = process.env.RESERVATION_COPY_EMAIL || 'herolind.luzha@clearline-cc.de'
+const COPY_EMAIL = process.env.RESERVATION_COPY_EMAIL || 'herolind01110000@gmail.com'
 const ADMIN_EMAIL = process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de'
 
 function sanitize(s?: string | null): string {
@@ -79,7 +79,7 @@ async function sendToClient(clientEmail: string, subject: string, body: string):
   }
 }
 
-// Send copy email to herolind.luzha@clearline-cc.de
+// Send copy email to herolind01110000@gmail.com
 async function sendCopyEmail(subject: string, body: string, replyTo?: string): Promise<void> {
   const sent = await sendSingleEmail(COPY_EMAIL, subject, body, replyTo)
   if (sent) {
@@ -126,11 +126,11 @@ export const handler = async (event: DynamoDBStreamEvent) => {
       
       const clientReplyTo = isEmailLike(email) ? email : undefined
 
-      // Email 1: Send to admin
-      await sendToAdmin('Neue Reservierungsanfrage', adminBody, clientReplyTo)
-
-      // Email 2: Send copy to herolind.luzha@clearline-cc.de
+      // Email 1: Send copy to herolind01110000@gmail.com FIRST
       await sendCopyEmail('Neue Reservierungsanfrage (Kopie)', adminBody, clientReplyTo)
+
+      // Email 2: Send to admin
+      await sendToAdmin('Neue Reservierungsanfrage', adminBody, clientReplyTo)
 
       // Email 3: Send confirmation to client
       const clientBody = `<h2>Vielen Dank, ${name}!</h2>
@@ -148,8 +148,8 @@ export const handler = async (event: DynamoDBStreamEvent) => {
           <p>Ihre Reservierung am ${date} um ${time} für ${guests} Personen ist bestätigt.</p>
           <p>Wir freuen uns auf Sie!</p>`
         
-        await sendToClient(email, 'Reservierung bestätigt – Da Sergio', body)
         await sendCopyEmail('Reservierung bestätigt (Kopie) – Da Sergio', body)
+        await sendToClient(email, 'Reservierung bestätigt – Da Sergio', body)
 
       } else if (newStatus === 'REJECTED') {
         const body = `<h2>Reservierung abgelehnt</h2>
@@ -157,8 +157,8 @@ export const handler = async (event: DynamoDBStreamEvent) => {
           <p>Leider können wir Ihre Anfrage am ${date} um ${time} nicht bestätigen.</p>
           <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
         
-        await sendToClient(email, 'Reservierung abgelehnt – Da Sergio', body)
         await sendCopyEmail('Reservierung abgelehnt (Kopie) – Da Sergio', body)
+        await sendToClient(email, 'Reservierung abgelehnt – Da Sergio', body)
       }
     }
   }
