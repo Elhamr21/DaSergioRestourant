@@ -37,10 +37,8 @@ function isEmailLike(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-function copyEmailsFor(recipientEmail: string): string[] {
-  return RESERVATION_COPY_EMAILS.filter(
-    copyEmail => copyEmail.toLowerCase() !== recipientEmail.toLowerCase()
-  )
+function copyEmailsFor(): string[] {
+  return RESERVATION_COPY_EMAILS
 }
 
 function wait(ms: number): Promise<void> {
@@ -80,6 +78,7 @@ async function sendEmail(to: string[], subject: string, body: string, options: S
           Body: { Html: { Data: body } },
         },
       }))
+      console.info('Email send accepted:', JSON.stringify({ to, subject, attempt }))
       return true
     } catch (err) {
       const retryable = isRetryableEmailError(err)
@@ -102,7 +101,7 @@ async function sendEmail(to: string[], subject: string, body: string, options: S
 async function sendClientEmail(to: string, subject: string, body: string) {
   await sendEmail([to], subject, body)
 
-  const copyEmails = copyEmailsFor(to)
+  const copyEmails = copyEmailsFor()
   for (const copyEmail of copyEmails) {
     await sendEmail([copyEmail], subject, body)
   }
