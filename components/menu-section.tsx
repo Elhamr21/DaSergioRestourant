@@ -32,7 +32,7 @@ const categoryImages: Record<string, string> = {
   dolci: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Deserts9-4gaTDMhgMrZAByQ5UTL5bAg0OA9BjU.png',
 }
 
-function MenuCard({ item, onClick }: { item: MenuItem; onClick: () => void }) {
+function MenuCard({ item, onClick, loadEager = false }: { item: MenuItem; onClick: () => void; loadEager?: boolean }) {
   return (
     <motion.button
       className="group relative bg-deep-green rounded-xl overflow-hidden text-left w-full"
@@ -51,6 +51,7 @@ function MenuCard({ item, onClick }: { item: MenuItem; onClick: () => void }) {
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-110"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          loading={loadEager ? 'eager' : 'lazy'}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-deep-green via-deep-green/20 to-transparent" />
         
@@ -280,10 +281,11 @@ export function MenuSection() {
           layout
         >
           <AnimatePresence mode="popLayout">
-            {filteredItems.map((item) => (
+            {filteredItems.map((item, index) => (
               <MenuCard
                 key={item.id}
                 item={item}
+                loadEager={index === 0}
                 onClick={() => setSelectedItem(item)}
               />
             ))}
