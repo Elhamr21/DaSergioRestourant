@@ -14,6 +14,7 @@ const ADMIN_EMAILS = uniqueEmails(
 
 type SendEmailOptions = {
   replyTo?: string[]
+  bcc?: string[]
 }
 
 function uniqueEmails(emails: string[]): string[] {
@@ -37,8 +38,13 @@ function isEmailLike(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-function copyEmailsFor(): string[] {
-  return RESERVATION_COPY_EMAILS
+function emailsExcluding(emails: string[], excludedEmails: string[]): string[] {
+  const excluded = new Set(uniqueEmails(excludedEmails).map(email => email.toLowerCase()))
+  return uniqueEmails(emails).filter(email => !excluded.has(email.toLowerCase()))
+}
+
+function copyEmailsFor(existingRecipients: string[] = []): string[] {
+  return emailsExcluding(RESERVATION_COPY_EMAILS, existingRecipients)
 }
 
 function wait(ms: number): Promise<void> {
@@ -64,26 +70,33 @@ function isRetryableEmailError(err: unknown): boolean {
 }
 
 async function sendEmail(to: string[], subject: string, body: string, options: SendEmailOptions = {}): Promise<boolean> {
-  if (!to.length) return true
+  const toAddresses = uniqueEmails(to)
+  const bccAddresses = emailsExcluding(options.bcc ?? [], toAddresses)
+
+  if (!toAddresses.length && !bccAddresses.length) return true
 
   const maxAttempts = 3
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await ses.send(new SendEmailCommand({
         Source: FROM_EMAIL,
-        Destination: { ToAddresses: to },
+        Destination: {
+          ToAddresses: toAddresses.length ? toAddresses : undefined,
+          BccAddresses: bccAddresses.length ? bccAddresses : undefined,
+        },
         ReplyToAddresses: options.replyTo,
         Message: {
           Subject: { Data: subject },
           Body: { Html: { Data: body } },
         },
       }))
-      console.info('Email send accepted:', JSON.stringify({ to, subject, attempt }))
+      console.info('Email send accepted:', JSON.stringify({ to: toAddresses, bcc: bccAddresses, subject, attempt }))
       return true
     } catch (err) {
       const retryable = isRetryableEmailError(err)
       console.error('Email send failed:', JSON.stringify({
-        to,
+        to: toAddresses,
+        bcc: bccAddresses,
         subject,
         attempt,
         retryable,
@@ -98,13 +111,24 @@ async function sendEmail(to: string[], subject: string, body: string, options: S
   return false
 }
 
-async function sendClientEmail(to: string, subject: string, body: string) {
-  await sendEmail([to], subject, body)
+async function sendEmailWithCopy(to: string[], subject: string, body: string, options: SendEmailOptions = {}) {
+  const copyEmails = copyEmailsFor([...(to ?? []), ...(options.bcc ?? [])])
+  const bcc = uniqueEmails([...(options.bcc ?? []), ...copyEmails])
+  const sentWithCopy = await sendEmail(to, subject, body, { ...options, bcc })
 
-  const copyEmails = copyEmailsFor()
+  if (sentWithCopy) return
+
+  console.warn('Email with reservation copy failed; retrying recipients separately:', JSON.stringify({ to, copyEmails, subject }))
+  const fallbackOptions = { ...options, bcc: undefined }
+  await sendEmail(to, subject, body, fallbackOptions)
+
   for (const copyEmail of copyEmails) {
-    await sendEmail([copyEmail], subject, body)
+    await sendEmail([copyEmail], subject, body, fallbackOptions)
   }
+}
+
+async function sendClientEmail(to: string, subject: string, body: string) {
+  await sendEmailWithCopy([to], subject, body)
 }
 
 export const handler = async (event: DynamoDBStreamEvent) => {
@@ -126,7 +150,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     if (!email) continue
 
     if (record.eventName === 'INSERT') {
-      await sendEmail(ADMIN_EMAILS, 'Neue Reservierungsanfrage',
+      await sendEmailWithCopy(ADMIN_EMAILS, 'Neue Reservierungsanfrage',
         `<h2>Neue Reservierung</h2>
         <p><b>${name}</b> — ${date} um ${time}, ${guests} Personen</p>
         <p>E-Mail: ${sanitize(email)}</p>
