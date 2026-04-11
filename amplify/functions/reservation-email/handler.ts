@@ -3,7 +3,7 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 
 const ses = new SESClient({})
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@da-sergio-restaurant.de'
-const COPY_EMAIL = process.env.RESERVATION_COPY_EMAIL || 'herolind01110000@gmail.com'
+const COPY_EMAIL = process.env.RESERVATION_COPY_EMAIL || 'herolind.luzha@clearline-cc.de'
 const ADMIN_EMAIL = process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de'
 
 function sanitize(s?: string | null): string {
@@ -79,7 +79,7 @@ async function sendToClient(clientEmail: string, subject: string, body: string):
   }
 }
 
-// Send copy email to herolind01110000@gmail.com
+// Send copy email to herolind.luzha@clearline-cc.de
 async function sendCopyEmail(subject: string, body: string, replyTo?: string): Promise<void> {
   const sent = await sendSingleEmail(COPY_EMAIL, subject, body, replyTo)
   if (sent) {
@@ -129,7 +129,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
       // Email 1: Send to admin
       await sendToAdmin('Neue Reservierungsanfrage', adminBody, clientReplyTo)
 
-      // Email 2: Send copy to herolind01110000@gmail.com
+      // Email 2: Send copy to herolind.luzha@clearline-cc.de
       await sendCopyEmail('Neue Reservierungsanfrage (Kopie)', adminBody, clientReplyTo)
 
       // Email 3: Send confirmation to client
