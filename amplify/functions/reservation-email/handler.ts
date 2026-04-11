@@ -14,7 +14,6 @@ const ADMIN_EMAILS = uniqueEmails(
 
 type SendEmailOptions = {
   replyTo?: string[]
-  bcc?: string[]
 }
 
 function uniqueEmails(emails: string[]): string[] {
@@ -44,36 +43,68 @@ function copyEmailsFor(recipientEmail: string): string[] {
   )
 }
 
-async function sendEmail(to: string[], subject: string, body: string, options: SendEmailOptions = {}): Promise<boolean> {
-  if (!to.length && !options.bcc?.length) return true
+function wait(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
 
-  try {
-    await ses.send(new SendEmailCommand({
-      Source: FROM_EMAIL,
-      Destination: {
-        ToAddresses: to,
-        BccAddresses: options.bcc,
-      },
-      ReplyToAddresses: options.replyTo,
-      Message: {
-        Subject: { Data: subject },
-        Body: { Html: { Data: body } },
-      },
-    }))
-    return true
-  } catch (err) {
-    console.error('Email send failed:', JSON.stringify({ to, bcc: options.bcc ?? [], subject, error: String(err) }))
-    return false
+function emailErrorMessage(err: unknown): string {
+  if (err instanceof Error) return `${err.name}: ${err.message}`
+  return String(err)
+}
+
+function isRetryableEmailError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+
+  const error = err as { $retryable?: unknown; name?: string; message?: string }
+  const text = `${error.name ?? ''} ${error.message ?? ''}`.toLowerCase()
+
+  return Boolean(error.$retryable)
+    || text.includes('throttl')
+    || text.includes('maximum sending rate')
+    || text.includes('timeout')
+    || text.includes('temporarily')
+}
+
+async function sendEmail(to: string[], subject: string, body: string, options: SendEmailOptions = {}): Promise<boolean> {
+  if (!to.length) return true
+
+  const maxAttempts = 3
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await ses.send(new SendEmailCommand({
+        Source: FROM_EMAIL,
+        Destination: { ToAddresses: to },
+        ReplyToAddresses: options.replyTo,
+        Message: {
+          Subject: { Data: subject },
+          Body: { Html: { Data: body } },
+        },
+      }))
+      return true
+    } catch (err) {
+      const retryable = isRetryableEmailError(err)
+      console.error('Email send failed:', JSON.stringify({
+        to,
+        subject,
+        attempt,
+        retryable,
+        error: emailErrorMessage(err),
+      }))
+
+      if (!retryable || attempt === maxAttempts) return false
+      await wait(attempt * 1000)
+    }
   }
+
+  return false
 }
 
 async function sendClientEmail(to: string, subject: string, body: string) {
-  const bcc = copyEmailsFor(to)
-  const sent = await sendEmail([to], subject, body, { bcc })
+  await sendEmail([to], subject, body)
 
-  if (!sent && bcc.length) {
-    await sendEmail([to], subject, body)
-    await sendEmail(bcc, subject, body)
+  const copyEmails = copyEmailsFor(to)
+  for (const copyEmail of copyEmails) {
+    await sendEmail([copyEmail], subject, body)
   }
 }
 
