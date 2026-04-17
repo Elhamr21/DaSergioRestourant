@@ -14,6 +14,31 @@ function isEmailLike(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
+function getReservationReference(id?: string): string {
+  if (!id) return `REF-${Date.now()}`
+  return `REF-${id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10).toUpperCase()}`
+}
+
+function reservationDetailsHtml(details: {
+  name: string
+  email: string
+  phone: string
+  date: string
+  time: string
+  guests: string
+  message?: string
+}): string {
+  return `<ul style="padding-left: 18px; margin: 16px 0;">
+    <li><b>Name:</b> ${details.name}</li>
+    <li><b>E-Mail:</b> ${sanitize(details.email)}</li>
+    ${details.phone ? `<li><b>Telefon:</b> ${details.phone}</li>` : ''}
+    <li><b>Datum:</b> ${details.date}</li>
+    <li><b>Uhrzeit:</b> ${details.time}</li>
+    <li><b>Personen:</b> ${details.guests}</li>
+    ${details.message ? `<li><b>Nachricht:</b> ${sanitize(details.message)}</li>` : ''}
+  </ul>`
+}
+
 function wait(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
@@ -106,6 +131,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     if (!newImg) continue
 
     const name = sanitize(newImg.name?.S)
+    const reservationId = newImg.id?.S
     const email = newImg.email?.S?.trim()
     const phone = sanitize(newImg.phone?.S)
     const date = sanitize(newImg.date?.S)
@@ -114,8 +140,19 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     const message = newImg.message?.S
     const newStatus = newImg.status?.S
     const oldStatus = oldImg?.status?.S
+    const reservationReference = getReservationReference(reservationId)
 
     if (!email) continue
+
+    const reservationDetails = reservationDetailsHtml({
+      name,
+      email,
+      phone,
+      date,
+      time,
+      guests,
+      message,
+    })
 
     if (record.eventName === 'INSERT') {
       const adminBody = `<h2>Neue Reservierung</h2>
@@ -135,7 +172,8 @@ export const handler = async (event: DynamoDBStreamEvent) => {
       // Email 3: Send confirmation to client
       const clientBody = `<h2>Vielen Dank, ${name}!</h2>
         <p>Wir haben Ihre Anfrage erhalten:</p>
-        <p>${date} um ${time} für ${guests} Personen</p>
+        <p>Ihre Referenz: <b>${reservationReference}</b></p>
+        ${reservationDetails}
         <p>Wir melden uns in Kürze.</p>`
       
       await sendToClient(email, 'Ihre Reservierungsanfrage bei Da Sergio', clientBody)
@@ -143,13 +181,16 @@ export const handler = async (event: DynamoDBStreamEvent) => {
 
     if (record.eventName === 'MODIFY' && newStatus !== oldStatus) {
       if (newStatus === 'CONFIRMED') {
+        const confirmationSubject = `Reservierung bestaetigt - ${reservationReference} - ${date} ${time}`
         const body = `<h2>Reservierung bestätigt!</h2>
           <p>Liebe/r ${name},</p>
-          <p>Ihre Reservierung am ${date} um ${time} für ${guests} Personen ist bestätigt.</p>
+          <p>Ihre Reservierung ist bestätigt.</p>
+          <p>Ihre Referenz: <b>${reservationReference}</b></p>
+          ${reservationDetails}
           <p>Wir freuen uns auf Sie!</p>`
         
-        await sendCopyEmail('Reservierung bestätigt (Kopie) – Da Sergio', body)
-        await sendToClient(email, 'Reservierung bestätigt – Da Sergio', body)
+        await sendCopyEmail(`${confirmationSubject} (Kopie)`, body)
+        await sendToClient(email, confirmationSubject, body)
 
       } else if (newStatus === 'REJECTED') {
         const body = `<h2>Reservierung abgelehnt</h2>
