@@ -162,12 +162,13 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`
       
       const clientReplyTo = isEmailLike(email) ? email : undefined
+      const adminSubject = `Neue Reservierung: ${name} - ${date} ${time} (${guests} Pers.)`
 
       // Email 1: Send copy to bdeda326@gmail.com FIRST
-      await sendCopyEmail('Neue Reservierungsanfrage (Kopie)', adminBody, clientReplyTo)
+      await sendCopyEmail(`${adminSubject} (Kopie)`, adminBody, clientReplyTo)
 
       // Email 2: Send to admin
-      await sendToAdmin('Neue Reservierungsanfrage', adminBody, clientReplyTo)
+      await sendToAdmin(adminSubject, adminBody, clientReplyTo)
 
       // Email 3: Send confirmation to client
       const clientBody = `<h2>Vielen Dank, ${name}!</h2>
@@ -193,13 +194,14 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         await sendToClient(email, confirmationSubject, body)
 
       } else if (newStatus === 'REJECTED') {
+        const rejectionSubject = `Reservierung abgelehnt - ${reservationReference} - ${date} ${time}`
         const body = `<h2>Reservierung abgelehnt</h2>
           <p>Liebe/r ${name},</p>
           <p>Leider können wir Ihre Anfrage am ${date} um ${time} nicht bestätigen.</p>
           <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
         
-        await sendCopyEmail('Reservierung abgelehnt (Kopie) – Da Sergio', body)
-        await sendToClient(email, 'Reservierung abgelehnt – Da Sergio', body)
+        await sendCopyEmail(`${rejectionSubject} (Kopie)`, body)
+        await sendToClient(email, rejectionSubject, body)
       }
     }
   }
