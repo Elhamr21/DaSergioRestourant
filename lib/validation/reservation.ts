@@ -10,7 +10,7 @@ const todayStr = () => new Date().toISOString().split('T')[0]
 export const reservationSchema = z.object({
   name: z.string().min(2, 'Name muss mindestens 2 Zeichen haben'),
   email: z.string().email('Bitte geben Sie eine gültige E-Mail-Adresse ein'),
-  phone: z.string().optional().default(''),
+  phone: z.string().trim().min(4, 'Bitte geben Sie eine Telefonnummer ein'),
   date: z.string().refine((d) => d >= todayStr(), 'Datum muss heute oder in der Zukunft liegen'),
   time: z.enum(TIME_SLOTS, { errorMap: () => ({ message: 'Bitte wählen Sie eine gültige Uhrzeit' }) }),
   guests: z.coerce.number().int().min(1, 'Mindestens 1 Person'),

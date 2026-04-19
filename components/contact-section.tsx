@@ -96,7 +96,7 @@ export function ContactSection() {
       const { errors: gqlErrors } = await client.models.Reservation.create({
         name: formData.name.trim(),
         email: formData.email.trim(),
-        phone: formData.phone.trim() || undefined,
+        phone: formData.phone.trim(),
         date: formData.date,
         time: formData.time,
         guests: Number(formData.guests),
@@ -266,10 +266,11 @@ export function ContactSection() {
 
                     {/* Phone */}
                     <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-2">Telefonnummer (optional)</label>
+                      <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-2">Telefonnummer *</label>
                       <input type="tel" id="phone" name="phone" value={formData.phone} onChange={handleChange}
-                        className="w-full px-4 py-3 rounded-lg bg-deep-green-dark border border-border focus:border-gold text-foreground placeholder:text-gray-text focus:outline-none"
+                        className={inputClass('phone')}
                         placeholder="Ihre Telefonnummer" />
+                      {errors.phone && <p className="text-red-500 text-sm mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.phone}</p>}
                     </div>
 
                     {/* Guests */}

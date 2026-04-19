@@ -8,6 +8,7 @@ const ADMIN_EMAILS = parseEmailList(process.env.SES_ADMIN_EMAILS || 'info@da-ser
 const COPY_EMAILS = parseEmailList(process.env.RESERVATION_COPY_EMAIL || '')
 const ADMIN_RECIPIENTS = uniqueEmails([...ADMIN_EMAILS, ...COPY_EMAILS])
 const CLIENT_REPLY_TO_EMAIL = ADMIN_EMAILS[0] || FROM_EMAIL
+const NO_PHONE_VALUE = 'Keine Telefonnummer angegeben'
 
 type ReservationDetails = {
   reference: string
@@ -82,6 +83,11 @@ function isEmailLike(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
+function displayValue(value?: string, fallback = '-'): string {
+  const trimmed = value?.trim()
+  return trimmed || fallback
+}
+
 function adminRecipientsFor(clientEmail?: string): string[] {
   const clientKey = clientEmail ? emailKey(clientEmail) : ''
 
@@ -90,7 +96,10 @@ function adminRecipientsFor(clientEmail?: string): string[] {
 
 function getReservationReference(id?: string): string {
   if (!id) return `REF-${Date.now()}`
-  return `REF-${id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10).toUpperCase()}`
+  const cleanId = id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  if (cleanId.length <= 12) return `REF-${cleanId}`
+
+  return `REF-${cleanId.slice(0, 8)}-${cleanId.slice(-6)}`
 }
 
 function statusLabel(status?: string): string {
@@ -119,7 +128,7 @@ function reservationDetailsTableHtml(details: ReservationDetails): string {
     ['Status', statusLabel(details.status)],
     ['Name', details.name],
     ['E-Mail', details.email],
-    ['Telefon', details.phone || '-'],
+    ['Telefon', displayValue(details.phone, NO_PHONE_VALUE)],
     ['Datum', details.date],
     ['Uhrzeit', details.time],
     ['Personen', details.guests],
@@ -138,6 +147,27 @@ function reservationDetailsTableHtml(details: ReservationDetails): string {
   }).join('')
 
   return `<table style="border-collapse: collapse; width: 100%; max-width: 620px; margin: 16px 0;">${body}</table>`
+}
+
+function adminEmailSubject(action: string, details: ReservationDetails): string {
+  const phone = displayValue(details.phone, 'ohne Telefon')
+
+  return `${action} ${details.reference}: ${details.name} - ${details.date} ${details.time}, ${details.guests} Personen - Tel ${phone}`
+}
+
+function adminEmailSummaryHtml(details: ReservationDetails): string {
+  const phone = details.phone?.trim()
+  const safePhone = sanitize(phone)
+  const safeEmail = sanitize(details.email)
+
+  return `<p><b>${sanitize(details.name)}</b> - ${sanitize(details.date)} um ${sanitize(details.time)}, ${sanitize(details.guests)} Personen</p>
+    <p><b>Telefon:</b> ${
+      phone
+        ? `<a href="tel:${safePhone}">${safePhone}</a>`
+        : `<b>${NO_PHONE_VALUE}</b>`
+    }</p>
+    <p><b>E-Mail:</b> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
+    ${details.message ? `<p><b>Nachricht:</b> ${sanitize(details.message)}</p>` : ''}`
 }
 
 function buildRawEmail(options: {
@@ -276,7 +306,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
       status: newImg.status?.S,
       name: newImg.name?.S ?? '',
       email,
-      phone: newImg.phone?.S ?? '',
+      phone: newImg.phone?.S?.trim() ?? '',
       date: newImg.date?.S ?? '',
       time: newImg.time?.S ?? '',
       guests: newImg.guests?.N ?? '',
@@ -290,8 +320,9 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     const clientReplyTo = isEmailLike(email) ? email : undefined
 
     if (record.eventName === 'INSERT') {
-      const adminSubject = `[${reservationReference}] Neue Reservierung: ${details.name} - ${details.date} ${details.time} (${details.guests} Pers.)`
-      const adminBody = `<h2>Neue Reservierungsanfrage</h2>
+      const adminSubject = adminEmailSubject('Neue Reservierung', details)
+      const adminBody = `<h2>Neue Reservierung ${sanitize(reservationReference)}</h2>
+        ${adminEmailSummaryHtml(details)}
         <p>Alle Angaben aus der Anfrage:</p>
         ${adminDetails}`
 
@@ -308,7 +339,8 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     if (record.eventName === 'MODIFY' && newImg.status?.S !== oldImg?.status?.S) {
       if (newImg.status?.S === 'CONFIRMED') {
         const confirmationSubject = `[${reservationReference}] Reservierung bestätigt - ${details.date} ${details.time}`
-        const adminBody = `<h2>Reservierung bestätigt</h2>
+        const adminBody = `<h2>Reservierung bestätigt ${sanitize(reservationReference)}</h2>
+          ${adminEmailSummaryHtml(details)}
           <p>Alle Angaben zur bestätigten Reservierung:</p>
           ${adminDetails}`
         const clientBody = `<h2>Reservierung bestätigt!</h2>
@@ -317,11 +349,12 @@ export const handler = async (event: DynamoDBStreamEvent) => {
           ${reservationDetails}
           <p>Wir freuen uns auf Sie!</p>`
 
-        await sendToAdmin(`[${reservationReference}] Reservierung bestätigt: ${details.name}`, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-confirmed'), email)
+        await sendToAdmin(adminEmailSubject('Reservierung bestätigt', details), adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-confirmed'), email)
         await sendToClient(email, confirmationSubject, clientBody, stableMessageKey(reservationReference, 'client-confirmed'))
       } else if (newImg.status?.S === 'REJECTED') {
         const rejectionSubject = `[${reservationReference}] Reservierung abgelehnt - ${details.date} ${details.time}`
-        const adminBody = `<h2>Reservierung abgelehnt</h2>
+        const adminBody = `<h2>Reservierung abgelehnt ${sanitize(reservationReference)}</h2>
+          ${adminEmailSummaryHtml(details)}
           <p>Alle Angaben zur abgelehnten Reservierung:</p>
           ${adminDetails}`
         const clientBody = `<h2>Reservierung abgelehnt</h2>
@@ -329,7 +362,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
           <p>Leider können wir Ihre Anfrage am ${sanitize(details.date)} um ${sanitize(details.time)} nicht bestätigen.</p>
           <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
 
-        await sendToAdmin(`[${reservationReference}] Reservierung abgelehnt: ${details.name}`, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-rejected'), email)
+        await sendToAdmin(adminEmailSubject('Reservierung abgelehnt', details), adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-rejected'), email)
         await sendToClient(email, rejectionSubject, clientBody, stableMessageKey(reservationReference, 'client-rejected'))
       }
     }
