@@ -7,6 +7,6 @@ export const reservationEmailHandler = defineFunction({
     SES_FROM_EMAIL: 'noreply@da-sergio-restaurant.de',
     SES_FROM_NAME: 'Da Sergio Restaurant',
     SES_ADMIN_EMAILS: 'info@da-sergio-restaurant.de',
-    RESERVATION_COPY_EMAIL: '',
+    RESERVATION_COPY_EMAIL: 'Bdeda326@gmail.com',
   },
 })
