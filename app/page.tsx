@@ -6,10 +6,13 @@ import { GallerySection } from '@/components/gallery-section'
 import { ContactSection } from '@/components/contact-section'
 import { GoogleReviews } from '@/components/google-reviews'
 import { Footer } from '@/components/footer'
+import { JsonLd } from '@/components/json-ld'
+import { getRestaurantJsonLd, getWebSiteJsonLd } from '@/lib/seo'
 
 export default function HomePage() {
   return (
     <>
+      <JsonLd data={[getRestaurantJsonLd(), getWebSiteJsonLd()]} />
       <Navbar />
       <main>
         <Hero />

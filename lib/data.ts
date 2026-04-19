@@ -320,6 +320,11 @@ export const reviews: Review[] = [
   },
 ]
 
+export const reviewSummary = {
+  ratingValue: 4.8,
+  reviewCount: 422,
+}
+
 export const openingHours: OpeningHours[] = [
   { day: 'Montag - Sonntag', hours: '12:00 - 22:30 Uhr' },
 ]

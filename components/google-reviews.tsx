@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Star, ExternalLink } from 'lucide-react'
-import { reviews } from '@/lib/data'
+import { reviews, reviewSummary } from '@/lib/data'
 
 function AnimatedRating({ rating }: { rating: number }) {
   const [animate, setAnimate] = useState(false)
@@ -112,7 +112,7 @@ export function GoogleReviews() {
           <div className="inline-flex flex-col items-center glass rounded-2xl px-10 py-8">
             <div className="flex items-baseline gap-2 mb-2">
               <span className="text-5xl md:text-6xl font-bold text-gold">
-                <CountUp end={4.8} />
+                <CountUp end={reviewSummary.ratingValue} />
               </span>
               <span className="text-2xl text-gray-text">/5</span>
             </div>
@@ -127,7 +127,7 @@ export function GoogleReviews() {
               ))}
             </div>
             <p className="text-gray-text">
-              Basierend auf <span className="text-foreground font-medium">422 Bewertungen</span>
+              Basierend auf <span className="text-foreground font-medium">{reviewSummary.reviewCount} Bewertungen</span>
             </p>
           </div>
         </motion.div>

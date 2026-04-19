@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Urbanist, Fraunces } from 'next/font/google'
 import { AmplifyProvider } from '@/components/amplify-provider'
+import { defaultDescription, defaultSeoImage, metadataBase, siteName } from '@/lib/seo'
 import './globals.css'
 
 const urbanist = Urbanist({ 
@@ -16,16 +17,68 @@ const fraunces = Fraunces({
 })
 
 export const metadata: Metadata = {
-  title: 'Da Sergio - Restaurant & Pizzeria | Fulda',
-  description: 'Authentische italienische Küche in Fulda. Genießen Sie handgemachte Pizza, frische Pasta und traditionelle Gerichte in gemütlicher Atmosphäre. Reservieren Sie jetzt!',
-  keywords: ['Restaurant', 'Pizzeria', 'Fulda', 'Italienisch', 'Pizza', 'Pasta', 'Da Sergio'],
+  metadataBase,
+  applicationName: siteName,
+  title: {
+    default: 'Da Sergio - Restaurant & Pizzeria in Fulda',
+    template: '%s | Da Sergio Fulda',
+  },
+  description: defaultDescription,
+  keywords: [
+    'Da Sergio Fulda',
+    'Restaurant Fulda',
+    'Pizzeria Fulda',
+    'Italienisches Restaurant Fulda',
+    'Pizza Fulda',
+    'Pasta Fulda',
+    'Tisch reservieren Fulda',
+  ],
   authors: [{ name: 'Da Sergio Restaurant' }],
+  creator: 'Da Sergio',
+  publisher: 'Da Sergio',
+  alternates: {
+    canonical: '/',
+  },
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
+      { url: '/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
+    ],
+    apple: '/apple-icon.png',
+  },
   openGraph: {
-    title: 'Da Sergio - Restaurant & Pizzeria | Fulda',
-    description: 'Authentische italienische Küche in Fulda. Genießen Sie handgemachte Pizza, frische Pasta und traditionelle Gerichte.',
+    title: 'Da Sergio - Restaurant & Pizzeria in Fulda',
+    description: defaultDescription,
+    url: '/',
+    siteName,
     type: 'website',
     locale: 'de_DE',
+    images: [
+      {
+        url: defaultSeoImage,
+        alt: 'Da Sergio Restaurant & Pizzeria in Fulda',
+      },
+    ],
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Da Sergio - Restaurant & Pizzeria in Fulda',
+    description: defaultDescription,
+    images: [defaultSeoImage],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  category: 'restaurant',
 }
 
 export const viewport: Viewport = {

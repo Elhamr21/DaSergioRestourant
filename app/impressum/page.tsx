@@ -4,8 +4,11 @@ import { ArrowLeft } from 'lucide-react'
 import { contactInfo } from '@/lib/data'
 
 export const metadata: Metadata = {
-  title: 'Impressum | Da Sergio - Restaurant & Pizzeria',
+  title: 'Impressum',
   description: 'Impressum und rechtliche Informationen für Da Sergio Restaurant & Pizzeria in Fulda.',
+  alternates: {
+    canonical: '/impressum',
+  },
 }
 
 export default function ImpressumPage() {

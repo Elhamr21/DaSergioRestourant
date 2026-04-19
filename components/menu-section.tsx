@@ -204,15 +204,15 @@ function BookModal({ item, onClose }: { item: MenuItem; onClose: () => void }) {
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-gold to-gold-light text-deep-green font-semibold px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-gold/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <BookOpen className="w-5 h-5" />
-                  View Full Menu
+                  Speisekarte ansehen
                 </Link>
                 <Link
-                  href="/#reservation"
+                  href="/#kontakt"
                   onClick={onClose}
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-wine to-wine-dark text-foreground font-semibold px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-wine/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Calendar className="w-5 h-5" />
-                  Make a Reservation
+                  Reservieren
                 </Link>
               </div>
             </motion.div>
