@@ -36,13 +36,17 @@ function uniqueEmails(emails: string[]): string[] {
   const unique: string[] = []
 
   for (const email of emails) {
-    const key = email.toLowerCase()
+    const key = emailKey(email)
     if (seen.has(key)) continue
     seen.add(key)
     unique.push(email)
   }
 
   return unique
+}
+
+function emailKey(email: string): string {
+  return email.trim().toLowerCase()
 }
 
 function cleanHeaderValue(value: string): string {
@@ -76,6 +80,12 @@ function sanitize(s?: string | null): string {
 
 function isEmailLike(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+function adminRecipientsFor(clientEmail?: string): string[] {
+  const clientKey = clientEmail ? emailKey(clientEmail) : ''
+
+  return ADMIN_RECIPIENTS.filter(email => isEmailLike(email) && emailKey(email) !== clientKey)
 }
 
 function getReservationReference(id?: string): string {
@@ -233,12 +243,19 @@ async function sendToClient(clientEmail: string, subject: string, body: string, 
   }
 }
 
-async function sendToAdmin(subject: string, body: string, replyTo: string | undefined, messageKey: string): Promise<void> {
-  const sent = await sendSingleEmail(ADMIN_RECIPIENTS, subject, body, replyTo, messageKey)
+async function sendToAdmin(subject: string, body: string, replyTo: string | undefined, messageKey: string, clientEmail?: string): Promise<void> {
+  const recipients = adminRecipientsFor(clientEmail)
+
+  if (!recipients.length) {
+    console.info('No admin recipients after excluding the client email for subject:', subject)
+    return
+  }
+
+  const sent = await sendSingleEmail(recipients, subject, body, replyTo, messageKey)
   if (sent) {
-    console.info('Admin email sent to:', ADMIN_RECIPIENTS.join(', '))
+    console.info('Admin email sent to:', recipients.join(', '))
   } else {
-    console.error('Failed to send admin email to:', ADMIN_RECIPIENTS.join(', '))
+    console.error('Failed to send admin email to:', recipients.join(', '))
   }
 }
 
@@ -278,7 +295,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         <p>Alle Angaben aus der Anfrage:</p>
         ${adminDetails}`
 
-      await sendToAdmin(adminSubject, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-new-reservation'))
+      await sendToAdmin(adminSubject, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-new-reservation'), email)
 
       const clientBody = `<h2>Vielen Dank, ${sanitize(details.name)}!</h2>
         <p>Wir haben Ihre Anfrage erhalten:</p>
@@ -300,7 +317,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
           ${reservationDetails}
           <p>Wir freuen uns auf Sie!</p>`
 
-        await sendToAdmin(`[${reservationReference}] Reservierung bestätigt: ${details.name}`, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-confirmed'))
+        await sendToAdmin(`[${reservationReference}] Reservierung bestätigt: ${details.name}`, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-confirmed'), email)
         await sendToClient(email, confirmationSubject, clientBody, stableMessageKey(reservationReference, 'client-confirmed'))
       } else if (newImg.status?.S === 'REJECTED') {
         const rejectionSubject = `[${reservationReference}] Reservierung abgelehnt - ${details.date} ${details.time}`
@@ -312,7 +329,7 @@ export const handler = async (event: DynamoDBStreamEvent) => {
           <p>Leider können wir Ihre Anfrage am ${sanitize(details.date)} um ${sanitize(details.time)} nicht bestätigen.</p>
           <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
 
-        await sendToAdmin(`[${reservationReference}] Reservierung abgelehnt: ${details.name}`, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-rejected'))
+        await sendToAdmin(`[${reservationReference}] Reservierung abgelehnt: ${details.name}`, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-rejected'), email)
         await sendToClient(email, rejectionSubject, clientBody, stableMessageKey(reservationReference, 'client-rejected'))
       }
     }
