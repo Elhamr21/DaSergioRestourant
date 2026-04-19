@@ -1,10 +1,37 @@
 import type { DynamoDBStreamEvent } from 'aws-lambda'
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
+import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses'
 
 const ses = new SESClient({})
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@da-sergio-restaurant.de'
 const COPY_EMAIL = process.env.RESERVATION_COPY_EMAIL || 'bdeda326@gmail.com'
 const ADMIN_EMAIL = process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de'
+
+function generateUniqueEmailId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+}
+
+function buildRawEmail(options: {
+  from: string
+  to: string
+  subject: string
+  htmlBody: string
+  replyTo?: string
+  uniqueId: string
+}): string {
+  const boundary = `----=_Part_${Date.now()}`
+  const headers = [
+    `From: ${options.from}`,
+    `To: ${options.to}`,
+    `Subject: =?UTF-8?B?${Buffer.from(options.subject).toString('base64')}?=`,
+    `MIME-Version: 1.0`,
+    `X-Entity-Ref-ID: ${options.uniqueId}`,
+    `Message-ID: <${options.uniqueId}@da-sergio-restaurant.de>`,
+    options.replyTo ? `Reply-To: ${options.replyTo}` : '',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ].filter(Boolean).join('\r\n')
+
+  return `${headers}\r\n\r\n--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from(options.htmlBody).toString('base64')}\r\n--${boundary}--`
+}
 
 function sanitize(s?: string | null): string {
   return (s ?? '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c] || c))
@@ -63,18 +90,23 @@ function isRetryableEmailError(err: unknown): boolean {
 
 async function sendSingleEmail(to: string, subject: string, body: string, replyTo?: string): Promise<boolean> {
   const maxAttempts = 3
+  const uniqueId = generateUniqueEmailId()
+  
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      await ses.send(new SendEmailCommand({
-        Source: FROM_EMAIL,
-        Destination: { ToAddresses: [to] },
-        ReplyToAddresses: replyTo ? [replyTo] : undefined,
-        Message: {
-          Subject: { Data: subject },
-          Body: { Html: { Data: body } },
-        },
+      const rawEmail = buildRawEmail({
+        from: FROM_EMAIL,
+        to,
+        subject,
+        htmlBody: body,
+        replyTo,
+        uniqueId,
+      })
+      
+      await ses.send(new SendRawEmailCommand({
+        RawMessage: { Data: Buffer.from(rawEmail) },
       }))
-      console.info('Email sent successfully:', JSON.stringify({ to, subject, attempt }))
+      console.info('Email sent successfully:', JSON.stringify({ to, subject, attempt, uniqueId }))
       return true
     } catch (err) {
       const retryable = isRetryableEmailError(err)
@@ -162,10 +194,10 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`
       
       const clientReplyTo = isEmailLike(email) ? email : undefined
-      const adminSubject = `Neue Reservierung: ${name} - ${date} ${time} (${guests} Pers.)`
+      const adminSubject = `[${reservationReference}] Neue Reservierung: ${name} - ${date} ${time} (${guests} Pers.)`
 
       // Email 1: Send copy to bdeda326@gmail.com FIRST
-      await sendCopyEmail(`${adminSubject} (Kopie)`, adminBody, clientReplyTo)
+      await sendCopyEmail(`[${reservationReference}] Kopie - Neue Reservierung: ${name}`, adminBody, clientReplyTo)
 
       // Email 2: Send to admin
       await sendToAdmin(adminSubject, adminBody, clientReplyTo)
@@ -177,12 +209,12 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         ${reservationDetails}
         <p>Wir melden uns in Kürze.</p>`
       
-      await sendToClient(email, 'Ihre Reservierungsanfrage bei Da Sergio', clientBody)
+      await sendToClient(email, `[${reservationReference}] Ihre Reservierungsanfrage bei Da Sergio`, clientBody)
     }
 
     if (record.eventName === 'MODIFY' && newStatus !== oldStatus) {
       if (newStatus === 'CONFIRMED') {
-        const confirmationSubject = `Reservierung bestaetigt - ${reservationReference} - ${date} ${time}`
+        const confirmationSubject = `[${reservationReference}] Reservierung bestaetigt - ${date} ${time}`
         const body = `<h2>Reservierung bestätigt!</h2>
           <p>Liebe/r ${name},</p>
           <p>Ihre Reservierung ist bestätigt.</p>
@@ -190,17 +222,17 @@ export const handler = async (event: DynamoDBStreamEvent) => {
           ${reservationDetails}
           <p>Wir freuen uns auf Sie!</p>`
         
-        await sendCopyEmail(`${confirmationSubject} (Kopie)`, body)
+        await sendCopyEmail(`[${reservationReference}] Kopie - Bestaetigung: ${name}`, body)
         await sendToClient(email, confirmationSubject, body)
 
       } else if (newStatus === 'REJECTED') {
-        const rejectionSubject = `Reservierung abgelehnt - ${reservationReference} - ${date} ${time}`
+        const rejectionSubject = `[${reservationReference}] Reservierung abgelehnt - ${date} ${time}`
         const body = `<h2>Reservierung abgelehnt</h2>
           <p>Liebe/r ${name},</p>
           <p>Leider können wir Ihre Anfrage am ${date} um ${time} nicht bestätigen.</p>
           <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
         
-        await sendCopyEmail(`${rejectionSubject} (Kopie)`, body)
+        await sendCopyEmail(`[${reservationReference}] Kopie - Ablehnung: ${name}`, body)
         await sendToClient(email, rejectionSubject, body)
       }
     }
