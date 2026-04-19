@@ -188,10 +188,37 @@ export const handler = async (event: DynamoDBStreamEvent) => {
 
     if (record.eventName === 'INSERT') {
       const adminBody = `<h2>Neue Reservierung</h2>
-        <p><b>${name}</b> — ${date} um ${time}, ${guests} Personen</p>
-        <p>E-Mail: ${sanitize(email)}</p>
-        ${phone ? `<p>Telefon: ${phone}</p>` : ''}
-        ${message ? `<p>Nachricht: ${sanitize(message)}</p>` : ''}`
+        <p>Referenz: <b>${reservationReference}</b></p>
+        <table style="border-collapse: collapse; width: 100%; max-width: 500px; margin: 16px 0;">
+          <tr style="background: #f5f5f5;">
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Name</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">E-Mail</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(email)}</td>
+          </tr>
+          <tr style="background: #f5f5f5;">
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Telefon</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${phone || '-'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Datum</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${date}</td>
+          </tr>
+          <tr style="background: #f5f5f5;">
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Uhrzeit</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${time}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Personen</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${guests}</td>
+          </tr>
+          ${message ? `<tr style="background: #f5f5f5;">
+            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Nachricht</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(message)}</td>
+          </tr>` : ''}
+        </table>`
       
       const clientReplyTo = isEmailLike(email) ? email : undefined
       const adminSubject = `[${reservationReference}] Neue Reservierung: ${name} - ${date} ${time} (${guests} Pers.)`
@@ -215,25 +242,97 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     if (record.eventName === 'MODIFY' && newStatus !== oldStatus) {
       if (newStatus === 'CONFIRMED') {
         const confirmationSubject = `[${reservationReference}] Reservierung bestaetigt - ${date} ${time}`
-        const body = `<h2>Reservierung bestätigt!</h2>
+        
+        // Admin/copy email with full table
+        const copyBody = `<h2>Reservierung bestätigt</h2>
+          <p>Referenz: <b>${reservationReference}</b></p>
+          <table style="border-collapse: collapse; width: 100%; max-width: 500px; margin: 16px 0;">
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Name</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">E-Mail</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(email)}</td>
+            </tr>
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Telefon</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${phone || '-'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Datum</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${date}</td>
+            </tr>
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Uhrzeit</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${time}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Personen</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${guests}</td>
+            </tr>
+            ${message ? `<tr style="background: #f5f5f5;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Nachricht</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(message)}</td>
+            </tr>` : ''}
+          </table>`
+        
+        // Client email
+        const clientBody = `<h2>Reservierung bestätigt!</h2>
           <p>Liebe/r ${name},</p>
           <p>Ihre Reservierung ist bestätigt.</p>
           <p>Ihre Referenz: <b>${reservationReference}</b></p>
           ${reservationDetails}
           <p>Wir freuen uns auf Sie!</p>`
         
-        await sendCopyEmail(`[${reservationReference}] Kopie - Bestaetigung: ${name}`, body)
-        await sendToClient(email, confirmationSubject, body)
+        await sendCopyEmail(`[${reservationReference}] Kopie - Bestaetigung: ${name}`, copyBody)
+        await sendToClient(email, confirmationSubject, clientBody)
 
       } else if (newStatus === 'REJECTED') {
         const rejectionSubject = `[${reservationReference}] Reservierung abgelehnt - ${date} ${time}`
-        const body = `<h2>Reservierung abgelehnt</h2>
+        
+        // Admin/copy email with full table
+        const copyBody = `<h2>Reservierung abgelehnt</h2>
+          <p>Referenz: <b>${reservationReference}</b></p>
+          <table style="border-collapse: collapse; width: 100%; max-width: 500px; margin: 16px 0;">
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Name</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">E-Mail</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(email)}</td>
+            </tr>
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Telefon</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${phone || '-'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Datum</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${date}</td>
+            </tr>
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Uhrzeit</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${time}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Personen</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${guests}</td>
+            </tr>
+            ${message ? `<tr style="background: #f5f5f5;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Nachricht</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(message)}</td>
+            </tr>` : ''}
+          </table>`
+        
+        // Client email
+        const clientBody = `<h2>Reservierung abgelehnt</h2>
           <p>Liebe/r ${name},</p>
           <p>Leider können wir Ihre Anfrage am ${date} um ${time} nicht bestätigen.</p>
           <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
         
-        await sendCopyEmail(`[${reservationReference}] Kopie - Ablehnung: ${name}`, body)
-        await sendToClient(email, rejectionSubject, body)
+        await sendCopyEmail(`[${reservationReference}] Kopie - Ablehnung: ${name}`, copyBody)
+        await sendToClient(email, rejectionSubject, clientBody)
       }
     }
   }
