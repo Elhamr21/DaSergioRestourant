@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, Phone, Mail, Clock, Check, AlertCircle, Send } from 'lucide-react'
 import { contactInfo, openingHours } from '@/lib/data'
@@ -53,6 +53,7 @@ function SuccessAnimation() {
 
 export function ContactSection() {
   const [client] = useState(() => generateClient<Schema>())
+  const submittingRef = useRef(false)
 
   const [formData, setFormData] = useState<FormData>({
     name: '', email: '', phone: '', guests: '', date: '', time: '', message: '',
@@ -84,9 +85,12 @@ export function ContactSection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submittingRef.current) return
+
     setSubmitError('')
     if (!validate()) return
 
+    submittingRef.current = true
     setIsSubmitting(true)
     try {
       const { errors: gqlErrors } = await client.models.Reservation.create({
@@ -109,6 +113,7 @@ export function ContactSection() {
       console.error('Reservation error:', err)
       setSubmitError('Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.')
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }

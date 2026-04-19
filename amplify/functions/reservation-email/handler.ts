@@ -3,34 +3,71 @@ import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses'
 
 const ses = new SESClient({})
 const FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@da-sergio-restaurant.de'
-const COPY_EMAIL = process.env.RESERVATION_COPY_EMAIL || 'bdeda326@gmail.com'
-const ADMIN_EMAIL = process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de'
+const FROM_NAME = process.env.SES_FROM_NAME || 'Da Sergio Restaurant'
+const ADMIN_EMAILS = parseEmailList(process.env.SES_ADMIN_EMAILS || 'info@da-sergio-restaurant.de')
+const COPY_EMAILS = parseEmailList(process.env.RESERVATION_COPY_EMAIL || '')
+const ADMIN_RECIPIENTS = uniqueEmails([...ADMIN_EMAILS, ...COPY_EMAILS])
+const CLIENT_REPLY_TO_EMAIL = ADMIN_EMAILS[0] || FROM_EMAIL
 
-function generateUniqueEmailId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+type ReservationDetails = {
+  reference: string
+  id?: string
+  status?: string
+  name: string
+  email: string
+  phone?: string
+  date: string
+  time: string
+  guests: string
+  message?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
-function buildRawEmail(options: {
-  from: string
-  to: string
-  subject: string
-  htmlBody: string
-  replyTo?: string
-  uniqueId: string
-}): string {
-  const boundary = `----=_Part_${Date.now()}`
-  const headers = [
-    `From: ${options.from}`,
-    `To: ${options.to}`,
-    `Subject: =?UTF-8?B?${Buffer.from(options.subject).toString('base64')}?=`,
-    `MIME-Version: 1.0`,
-    `X-Entity-Ref-ID: ${options.uniqueId}`,
-    `Message-ID: <${options.uniqueId}@da-sergio-restaurant.de>`,
-    options.replyTo ? `Reply-To: ${options.replyTo}` : '',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-  ].filter(Boolean).join('\r\n')
+function parseEmailList(value: string): string[] {
+  return value
+    .split(/[,\s;]+/)
+    .map(email => email.trim())
+    .filter(Boolean)
+}
 
-  return `${headers}\r\n\r\n--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from(options.htmlBody).toString('base64')}\r\n--${boundary}--`
+function uniqueEmails(emails: string[]): string[] {
+  const seen = new Set<string>()
+  const unique: string[] = []
+
+  for (const email of emails) {
+    const key = email.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(email)
+  }
+
+  return unique
+}
+
+function cleanHeaderValue(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ').trim()
+}
+
+function formatAddress(email: string, name?: string): string {
+  const cleanEmail = cleanHeaderValue(email)
+  const cleanName = name ? cleanHeaderValue(name) : ''
+
+  if (!cleanName) return cleanEmail
+
+  return `"${cleanName.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}" <${cleanEmail}>`
+}
+
+function stableMessageKey(...parts: string[]): string {
+  const key = parts
+    .filter(Boolean)
+    .join('-')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase()
+
+  return key.slice(0, 180) || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
 }
 
 function sanitize(s?: string | null): string {
@@ -46,24 +83,77 @@ function getReservationReference(id?: string): string {
   return `REF-${id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10).toUpperCase()}`
 }
 
-function reservationDetailsHtml(details: {
-  name: string
-  email: string
-  phone: string
-  date: string
-  time: string
-  guests: string
-  message?: string
-}): string {
+function statusLabel(status?: string): string {
+  if (status === 'CONFIRMED') return 'Bestätigt'
+  if (status === 'REJECTED') return 'Abgelehnt'
+  return 'Ausstehend'
+}
+
+function reservationDetailsHtml(details: ReservationDetails): string {
   return `<ul style="padding-left: 18px; margin: 16px 0;">
-    <li><b>Name:</b> ${details.name}</li>
+    <li><b>Referenz:</b> ${sanitize(details.reference)}</li>
+    <li><b>Name:</b> ${sanitize(details.name)}</li>
     <li><b>E-Mail:</b> ${sanitize(details.email)}</li>
-    ${details.phone ? `<li><b>Telefon:</b> ${details.phone}</li>` : ''}
-    <li><b>Datum:</b> ${details.date}</li>
-    <li><b>Uhrzeit:</b> ${details.time}</li>
-    <li><b>Personen:</b> ${details.guests}</li>
+    ${details.phone ? `<li><b>Telefon:</b> ${sanitize(details.phone)}</li>` : ''}
+    <li><b>Datum:</b> ${sanitize(details.date)}</li>
+    <li><b>Uhrzeit:</b> ${sanitize(details.time)}</li>
+    <li><b>Personen:</b> ${sanitize(details.guests)}</li>
     ${details.message ? `<li><b>Nachricht:</b> ${sanitize(details.message)}</li>` : ''}
   </ul>`
+}
+
+function reservationDetailsTableHtml(details: ReservationDetails): string {
+  const rows = [
+    ['Referenz', details.reference],
+    ['Reservierungs-ID', details.id || '-'],
+    ['Status', statusLabel(details.status)],
+    ['Name', details.name],
+    ['E-Mail', details.email],
+    ['Telefon', details.phone || '-'],
+    ['Datum', details.date],
+    ['Uhrzeit', details.time],
+    ['Personen', details.guests],
+    ['Nachricht', details.message || '-'],
+    ['Erstellt', details.createdAt || '-'],
+    ['Aktualisiert', details.updatedAt || '-'],
+  ]
+
+  const body = rows.map(([label, value], index) => {
+    const background = index % 2 === 0 ? ' style="background: #f5f5f5;"' : ''
+
+    return `<tr${background}>
+      <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; vertical-align: top;">${sanitize(label)}</td>
+      <td style="padding: 10px; border: 1px solid #ddd; vertical-align: top;">${sanitize(value)}</td>
+    </tr>`
+  }).join('')
+
+  return `<table style="border-collapse: collapse; width: 100%; max-width: 620px; margin: 16px 0;">${body}</table>`
+}
+
+function buildRawEmail(options: {
+  fromEmail: string
+  fromName: string
+  to: string[]
+  subject: string
+  htmlBody: string
+  replyTo?: string
+  messageKey: string
+}): string {
+  const boundary = `----=_Part_${Date.now()}`
+  const messageKey = stableMessageKey(options.messageKey)
+  const headers = [
+    `From: ${formatAddress(options.fromEmail, options.fromName)}`,
+    `To: ${options.to.map(email => formatAddress(email)).join(', ')}`,
+    `Subject: =?UTF-8?B?${Buffer.from(cleanHeaderValue(options.subject)).toString('base64')}?=`,
+    `MIME-Version: 1.0`,
+    `X-Entity-Ref-ID: ${messageKey}`,
+    `Message-ID: <${messageKey}@da-sergio-restaurant.de>`,
+    `Auto-Submitted: auto-generated`,
+    options.replyTo ? `Reply-To: ${formatAddress(options.replyTo)}` : '',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ].filter(Boolean).join('\r\n')
+
+  return `${headers}\r\n\r\n--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from(options.htmlBody).toString('base64')}\r\n--${boundary}--`
 }
 
 function wait(ms: number): Promise<void> {
@@ -88,30 +178,38 @@ function isRetryableEmailError(err: unknown): boolean {
     || text.includes('temporarily')
 }
 
-async function sendSingleEmail(to: string, subject: string, body: string, replyTo?: string): Promise<boolean> {
+async function sendSingleEmail(to: string | string[], subject: string, body: string, replyTo?: string, messageKey?: string): Promise<boolean> {
+  const recipients = uniqueEmails(Array.isArray(to) ? to : [to]).filter(isEmailLike)
+  if (!recipients.length) {
+    console.error('No valid email recipients for subject:', subject)
+    return false
+  }
+
   const maxAttempts = 3
-  const uniqueId = generateUniqueEmailId()
-  
+  const stableKey = stableMessageKey(messageKey || subject, recipients.join('-'))
+
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const rawEmail = buildRawEmail({
-        from: FROM_EMAIL,
-        to,
+        fromEmail: FROM_EMAIL,
+        fromName: FROM_NAME,
+        to: recipients,
         subject,
         htmlBody: body,
         replyTo,
-        uniqueId,
+        messageKey: stableKey,
       })
-      
+
       await ses.send(new SendRawEmailCommand({
+        Destinations: recipients,
         RawMessage: { Data: Buffer.from(rawEmail) },
       }))
-      console.info('Email sent successfully:', JSON.stringify({ to, subject, attempt, uniqueId }))
+      console.info('Email sent successfully:', JSON.stringify({ to: recipients, subject, attempt, messageKey: stableKey }))
       return true
     } catch (err) {
       const retryable = isRetryableEmailError(err)
       console.error('Email send failed:', JSON.stringify({
-        to,
+        to: recipients,
         subject,
         attempt,
         retryable,
@@ -126,9 +224,8 @@ async function sendSingleEmail(to: string, subject: string, body: string, replyT
   return false
 }
 
-// Send email to client
-async function sendToClient(clientEmail: string, subject: string, body: string): Promise<void> {
-  const sent = await sendSingleEmail(clientEmail, subject, body)
+async function sendToClient(clientEmail: string, subject: string, body: string, messageKey: string): Promise<void> {
+  const sent = await sendSingleEmail(clientEmail, subject, body, CLIENT_REPLY_TO_EMAIL, messageKey)
   if (sent) {
     console.info('Client email sent to:', clientEmail)
   } else {
@@ -136,23 +233,12 @@ async function sendToClient(clientEmail: string, subject: string, body: string):
   }
 }
 
-// Send copy email to bdeda326@gmail.com
-async function sendCopyEmail(subject: string, body: string, replyTo?: string): Promise<void> {
-  const sent = await sendSingleEmail(COPY_EMAIL, subject, body, replyTo)
+async function sendToAdmin(subject: string, body: string, replyTo: string | undefined, messageKey: string): Promise<void> {
+  const sent = await sendSingleEmail(ADMIN_RECIPIENTS, subject, body, replyTo, messageKey)
   if (sent) {
-    console.info('Copy email sent to:', COPY_EMAIL)
+    console.info('Admin email sent to:', ADMIN_RECIPIENTS.join(', '))
   } else {
-    console.error('Failed to send copy email to:', COPY_EMAIL)
-  }
-}
-
-// Send admin notification email
-async function sendToAdmin(subject: string, body: string, replyTo?: string): Promise<void> {
-  const sent = await sendSingleEmail(ADMIN_EMAIL, subject, body, replyTo)
-  if (sent) {
-    console.info('Admin email sent to:', ADMIN_EMAIL)
-  } else {
-    console.error('Failed to send admin email to:', ADMIN_EMAIL)
+    console.error('Failed to send admin email to:', ADMIN_RECIPIENTS.join(', '))
   }
 }
 
@@ -162,177 +248,72 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     const oldImg = record.dynamodb?.OldImage
     if (!newImg) continue
 
-    const name = sanitize(newImg.name?.S)
     const reservationId = newImg.id?.S
     const email = newImg.email?.S?.trim()
-    const phone = sanitize(newImg.phone?.S)
-    const date = sanitize(newImg.date?.S)
-    const time = sanitize(newImg.time?.S)
-    const guests = sanitize(newImg.guests?.N)
-    const message = newImg.message?.S
-    const newStatus = newImg.status?.S
-    const oldStatus = oldImg?.status?.S
-    const reservationReference = getReservationReference(reservationId)
-
     if (!email) continue
 
-    const reservationDetails = reservationDetailsHtml({
-      name,
+    const reservationReference = getReservationReference(reservationId)
+    const details: ReservationDetails = {
+      reference: reservationReference,
+      id: reservationId,
+      status: newImg.status?.S,
+      name: newImg.name?.S ?? '',
       email,
-      phone,
-      date,
-      time,
-      guests,
-      message,
-    })
-
-    if (record.eventName === 'INSERT') {
-      const adminBody = `<h2>Neue Reservierung</h2>
-        <p>Referenz: <b>${reservationReference}</b></p>
-        <table style="border-collapse: collapse; width: 100%; max-width: 500px; margin: 16px 0;">
-          <tr style="background: #f5f5f5;">
-            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Name</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${name}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">E-Mail</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(email)}</td>
-          </tr>
-          <tr style="background: #f5f5f5;">
-            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Telefon</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${phone || '-'}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Datum</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${date}</td>
-          </tr>
-          <tr style="background: #f5f5f5;">
-            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Uhrzeit</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${time}</td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Personen</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${guests}</td>
-          </tr>
-          ${message ? `<tr style="background: #f5f5f5;">
-            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Nachricht</td>
-            <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(message)}</td>
-          </tr>` : ''}
-        </table>`
-      
-      const clientReplyTo = isEmailLike(email) ? email : undefined
-      const adminSubject = `[${reservationReference}] Neue Reservierung: ${name} - ${date} ${time} (${guests} Pers.)`
-
-      // Email 1: Send copy to bdeda326@gmail.com FIRST
-      await sendCopyEmail(`[${reservationReference}] Kopie - Neue Reservierung: ${name}`, adminBody, clientReplyTo)
-
-      // Email 2: Send to admin
-      await sendToAdmin(adminSubject, adminBody, clientReplyTo)
-
-      // Email 3: Send confirmation to client
-      const clientBody = `<h2>Vielen Dank, ${name}!</h2>
-        <p>Wir haben Ihre Anfrage erhalten:</p>
-        <p>Ihre Referenz: <b>${reservationReference}</b></p>
-        ${reservationDetails}
-        <p>Wir melden uns in Kürze.</p>`
-      
-      await sendToClient(email, `[${reservationReference}] Ihre Reservierungsanfrage bei Da Sergio`, clientBody)
+      phone: newImg.phone?.S ?? '',
+      date: newImg.date?.S ?? '',
+      time: newImg.time?.S ?? '',
+      guests: newImg.guests?.N ?? '',
+      message: newImg.message?.S ?? '',
+      createdAt: newImg.createdAt?.S,
+      updatedAt: newImg.updatedAt?.S,
     }
 
-    if (record.eventName === 'MODIFY' && newStatus !== oldStatus) {
-      if (newStatus === 'CONFIRMED') {
-        const confirmationSubject = `[${reservationReference}] Reservierung bestaetigt - ${date} ${time}`
-        
-        // Admin/copy email with full table
-        const copyBody = `<h2>Reservierung bestätigt</h2>
-          <p>Referenz: <b>${reservationReference}</b></p>
-          <table style="border-collapse: collapse; width: 100%; max-width: 500px; margin: 16px 0;">
-            <tr style="background: #f5f5f5;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Name</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${name}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">E-Mail</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(email)}</td>
-            </tr>
-            <tr style="background: #f5f5f5;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Telefon</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${phone || '-'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Datum</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${date}</td>
-            </tr>
-            <tr style="background: #f5f5f5;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Uhrzeit</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${time}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Personen</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${guests}</td>
-            </tr>
-            ${message ? `<tr style="background: #f5f5f5;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Nachricht</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(message)}</td>
-            </tr>` : ''}
-          </table>`
-        
-        // Client email
+    const reservationDetails = reservationDetailsHtml(details)
+    const adminDetails = reservationDetailsTableHtml(details)
+    const clientReplyTo = isEmailLike(email) ? email : undefined
+
+    if (record.eventName === 'INSERT') {
+      const adminSubject = `[${reservationReference}] Neue Reservierung: ${details.name} - ${details.date} ${details.time} (${details.guests} Pers.)`
+      const adminBody = `<h2>Neue Reservierungsanfrage</h2>
+        <p>Alle Angaben aus der Anfrage:</p>
+        ${adminDetails}`
+
+      await sendToAdmin(adminSubject, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-new-reservation'))
+
+      const clientBody = `<h2>Vielen Dank, ${sanitize(details.name)}!</h2>
+        <p>Wir haben Ihre Anfrage erhalten:</p>
+        ${reservationDetails}
+        <p>Wir melden uns in Kürze.</p>`
+
+      await sendToClient(email, `[${reservationReference}] Ihre Reservierungsanfrage bei Da Sergio`, clientBody, stableMessageKey(reservationReference, 'client-request-received'))
+    }
+
+    if (record.eventName === 'MODIFY' && newImg.status?.S !== oldImg?.status?.S) {
+      if (newImg.status?.S === 'CONFIRMED') {
+        const confirmationSubject = `[${reservationReference}] Reservierung bestätigt - ${details.date} ${details.time}`
+        const adminBody = `<h2>Reservierung bestätigt</h2>
+          <p>Alle Angaben zur bestätigten Reservierung:</p>
+          ${adminDetails}`
         const clientBody = `<h2>Reservierung bestätigt!</h2>
-          <p>Liebe/r ${name},</p>
+          <p>Liebe/r ${sanitize(details.name)},</p>
           <p>Ihre Reservierung ist bestätigt.</p>
-          <p>Ihre Referenz: <b>${reservationReference}</b></p>
           ${reservationDetails}
           <p>Wir freuen uns auf Sie!</p>`
-        
-        await sendCopyEmail(`[${reservationReference}] Kopie - Bestaetigung: ${name}`, copyBody)
-        await sendToClient(email, confirmationSubject, clientBody)
 
-      } else if (newStatus === 'REJECTED') {
-        const rejectionSubject = `[${reservationReference}] Reservierung abgelehnt - ${date} ${time}`
-        
-        // Admin/copy email with full table
-        const copyBody = `<h2>Reservierung abgelehnt</h2>
-          <p>Referenz: <b>${reservationReference}</b></p>
-          <table style="border-collapse: collapse; width: 100%; max-width: 500px; margin: 16px 0;">
-            <tr style="background: #f5f5f5;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Name</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${name}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">E-Mail</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(email)}</td>
-            </tr>
-            <tr style="background: #f5f5f5;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Telefon</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${phone || '-'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Datum</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${date}</td>
-            </tr>
-            <tr style="background: #f5f5f5;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Uhrzeit</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${time}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Personen</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${guests}</td>
-            </tr>
-            ${message ? `<tr style="background: #f5f5f5;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Nachricht</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${sanitize(message)}</td>
-            </tr>` : ''}
-          </table>`
-        
-        // Client email
+        await sendToAdmin(`[${reservationReference}] Reservierung bestätigt: ${details.name}`, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-confirmed'))
+        await sendToClient(email, confirmationSubject, clientBody, stableMessageKey(reservationReference, 'client-confirmed'))
+      } else if (newImg.status?.S === 'REJECTED') {
+        const rejectionSubject = `[${reservationReference}] Reservierung abgelehnt - ${details.date} ${details.time}`
+        const adminBody = `<h2>Reservierung abgelehnt</h2>
+          <p>Alle Angaben zur abgelehnten Reservierung:</p>
+          ${adminDetails}`
         const clientBody = `<h2>Reservierung abgelehnt</h2>
-          <p>Liebe/r ${name},</p>
-          <p>Leider können wir Ihre Anfrage am ${date} um ${time} nicht bestätigen.</p>
+          <p>Liebe/r ${sanitize(details.name)},</p>
+          <p>Leider können wir Ihre Anfrage am ${sanitize(details.date)} um ${sanitize(details.time)} nicht bestätigen.</p>
           <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
-        
-        await sendCopyEmail(`[${reservationReference}] Kopie - Ablehnung: ${name}`, copyBody)
-        await sendToClient(email, rejectionSubject, clientBody)
+
+        await sendToAdmin(`[${reservationReference}] Reservierung abgelehnt: ${details.name}`, adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-rejected'))
+        await sendToClient(email, rejectionSubject, clientBody, stableMessageKey(reservationReference, 'client-rejected'))
       }
     }
   }
