@@ -88,6 +88,17 @@ function displayValue(value?: string, fallback = '-'): string {
   return trimmed || fallback
 }
 
+function formatReservationDate(value?: string): string {
+  const trimmed = value?.trim()
+  if (!trimmed) return '-'
+
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return trimmed
+
+  const [, year, month, day] = match
+  return `${day}.${month}.${year}`
+}
+
 function adminRecipientsFor(clientEmail?: string): string[] {
   const clientKey = clientEmail ? emailKey(clientEmail) : ''
 
@@ -109,12 +120,14 @@ function statusLabel(status?: string): string {
 }
 
 function reservationDetailsHtml(details: ReservationDetails): string {
+  const formattedDate = formatReservationDate(details.date)
+
   return `<ul style="padding-left: 18px; margin: 16px 0;">
     <li><b>Referenz:</b> ${sanitize(details.reference)}</li>
     <li><b>Name:</b> ${sanitize(details.name)}</li>
     <li><b>E-Mail:</b> ${sanitize(details.email)}</li>
     ${details.phone ? `<li><b>Telefon:</b> ${sanitize(details.phone)}</li>` : ''}
-    <li><b>Datum:</b> ${sanitize(details.date)}</li>
+    <li><b>Datum:</b> ${sanitize(formattedDate)}</li>
     <li><b>Uhrzeit:</b> ${sanitize(details.time)}</li>
     <li><b>Personen:</b> ${sanitize(details.guests)}</li>
     ${details.message ? `<li><b>Nachricht:</b> ${sanitize(details.message)}</li>` : ''}
@@ -122,6 +135,7 @@ function reservationDetailsHtml(details: ReservationDetails): string {
 }
 
 function reservationDetailsTableHtml(details: ReservationDetails): string {
+  const formattedDate = formatReservationDate(details.date)
   const rows = [
     ['Referenz', details.reference],
     ['Reservierungs-ID', details.id || '-'],
@@ -129,7 +143,7 @@ function reservationDetailsTableHtml(details: ReservationDetails): string {
     ['Name', details.name],
     ['E-Mail', details.email],
     ['Telefon', displayValue(details.phone, NO_PHONE_VALUE)],
-    ['Datum', details.date],
+    ['Datum', formattedDate],
     ['Uhrzeit', details.time],
     ['Personen', details.guests],
     ['Nachricht', details.message || '-'],
@@ -151,16 +165,18 @@ function reservationDetailsTableHtml(details: ReservationDetails): string {
 
 function adminEmailSubject(action: string, details: ReservationDetails): string {
   const phone = displayValue(details.phone, 'ohne Telefon')
+  const formattedDate = formatReservationDate(details.date)
 
-  return `${action} ${details.reference}: ${details.name} - ${details.date} ${details.time}, ${details.guests} Personen - Tel ${phone}`
+  return `${action} ${details.reference}: ${details.name} - ${formattedDate} ${details.time}, ${details.guests} Personen - Tel ${phone}`
 }
 
 function adminEmailSummaryHtml(details: ReservationDetails): string {
   const phone = details.phone?.trim()
   const safePhone = sanitize(phone)
   const safeEmail = sanitize(details.email)
+  const formattedDate = formatReservationDate(details.date)
 
-  return `<p><b>${sanitize(details.name)}</b> - ${sanitize(details.date)} um ${sanitize(details.time)}, ${sanitize(details.guests)} Personen</p>
+  return `<p><b>${sanitize(details.name)}</b> - ${sanitize(formattedDate)} um ${sanitize(details.time)}, ${sanitize(details.guests)} Personen</p>
     <p><b>Telefon:</b> ${
       phone
         ? `<a href="tel:${safePhone}">${safePhone}</a>`
@@ -338,7 +354,8 @@ export const handler = async (event: DynamoDBStreamEvent) => {
 
     if (record.eventName === 'MODIFY' && newImg.status?.S !== oldImg?.status?.S) {
       if (newImg.status?.S === 'CONFIRMED') {
-        const confirmationSubject = `[${reservationReference}] Reservierung bestätigt - ${details.date} ${details.time}`
+        const formattedDate = formatReservationDate(details.date)
+        const confirmationSubject = `[${reservationReference}] Reservierung bestätigt - ${formattedDate} ${details.time}`
         const adminBody = `<h2>Reservierung bestätigt ${sanitize(reservationReference)}</h2>
           ${adminEmailSummaryHtml(details)}
           <p>Alle Angaben zur bestätigten Reservierung:</p>
@@ -352,14 +369,15 @@ export const handler = async (event: DynamoDBStreamEvent) => {
         await sendToAdmin(adminEmailSubject('Reservierung bestätigt', details), adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-confirmed'), email)
         await sendToClient(email, confirmationSubject, clientBody, stableMessageKey(reservationReference, 'client-confirmed'))
       } else if (newImg.status?.S === 'REJECTED') {
-        const rejectionSubject = `[${reservationReference}] Reservierung abgelehnt - ${details.date} ${details.time}`
+        const formattedDate = formatReservationDate(details.date)
+        const rejectionSubject = `[${reservationReference}] Reservierung abgelehnt - ${formattedDate} ${details.time}`
         const adminBody = `<h2>Reservierung abgelehnt ${sanitize(reservationReference)}</h2>
           ${adminEmailSummaryHtml(details)}
           <p>Alle Angaben zur abgelehnten Reservierung:</p>
           ${adminDetails}`
         const clientBody = `<h2>Reservierung abgelehnt</h2>
           <p>Liebe/r ${sanitize(details.name)},</p>
-          <p>Leider können wir Ihre Anfrage am ${sanitize(details.date)} um ${sanitize(details.time)} nicht bestätigen.</p>
+          <p>Leider können wir Ihre Anfrage am ${sanitize(formattedDate)} um ${sanitize(details.time)} nicht bestätigen.</p>
           <p>Bitte kontaktieren Sie uns telefonisch für Alternativen.</p>`
 
         await sendToAdmin(adminEmailSubject('Reservierung abgelehnt', details), adminBody, clientReplyTo, stableMessageKey(reservationReference, 'admin-rejected'), email)
