@@ -331,7 +331,7 @@ export const openingHours: OpeningHours[] = [
 
 export const contactInfo = {
   address: 'Heinrich-von-Bibra-Platz 1b, 36037 Fulda',
-  phone: '0661 49989201',
+  phone: '+4915202091211',
   email: 'info@dasergio-restaurant.de',
   googleMapsUrl: 'https://maps.google.com/?q=Heinrich-von-Bibra-Platz+1b,+36037+Fulda',
 }
