@@ -16,7 +16,7 @@ export const businessAddress = {
   addressCountry: 'DE',
 }
 
-export const businessPhoneInternational = '+4915202091211'
+export const businessPhoneInternational = '+4917682134111'
 
 const dayOfWeek = [
   'Monday',
