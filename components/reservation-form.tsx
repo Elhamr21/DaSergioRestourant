@@ -15,7 +15,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { TIME_SLOTS, reservationSchema } from "@/lib/validation/reservation";
+import {
+  getAvailableTimeSlots,
+  TIME_SLOTS,
+  reservationSchema,
+} from "@/lib/validation/reservation";
 
 interface ReservationFormData {
   name: string;
@@ -208,15 +212,28 @@ export function ReservationForm({
   const labelClass = "mb-2 block text-sm font-medium text-foreground";
   const helperTextClass = "mt-1 flex items-center gap-1 text-sm text-red-500";
   const selectedDate = formData.date ? parseISO(formData.date) : undefined;
+  const availableTimeSlots = formData.date
+    ? getAvailableTimeSlots(formData.date)
+    : TIME_SLOTS;
 
   const handleDateSelect = (date: Date | undefined) => {
+    const nextDate = date ? format(date, "yyyy-MM-dd") : "";
+    const nextTimeSlots = nextDate
+      ? getAvailableTimeSlots(nextDate)
+      : TIME_SLOTS;
+
     setFormData((current) => ({
       ...current,
-      date: date ? format(date, "yyyy-MM-dd") : "",
+      date: nextDate,
+      time: nextTimeSlots.includes(current.time) ? current.time : "",
     }));
 
     if (errors.date) {
       setErrors((current) => ({ ...current, date: undefined }));
+    }
+
+    if (errors.time) {
+      setErrors((current) => ({ ...current, time: undefined }));
     }
 
     if (submitError) {
@@ -403,7 +420,7 @@ export function ReservationForm({
                   className={inputClass("time")}
                 >
                   <option value="">Wählen</option>
-                  {TIME_SLOTS.map((timeSlot) => (
+                  {availableTimeSlots.map((timeSlot) => (
                     <option key={timeSlot} value={timeSlot}>
                       {timeSlot}
                     </option>
