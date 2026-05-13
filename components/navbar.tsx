@@ -81,7 +81,7 @@ export function Navbar() {
                 Reservieren
               </button>
               <a
-                href={`tel:${contactInfo.phone}`}
+                href={`tel:${contactInfo.phoneHref}`}
                 className="flex items-center gap-2 text-gold hover:text-gold-dark transition-colors"
               >
                 <Phone className="w-4 h-4" />
@@ -141,7 +141,7 @@ export function Navbar() {
                   Reservieren
                 </motion.button>
                 <motion.a
-                  href={`tel:${contactInfo.phone}`}
+                  href={`tel:${contactInfo.phoneHref}`}
                   className="flex items-center justify-center gap-2 text-gold hover:text-gold-dark transition-colors py-3"
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}

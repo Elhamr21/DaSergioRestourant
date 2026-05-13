@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Urbanist, Fraunces } from 'next/font/google'
 import { AmplifyProvider } from '@/components/amplify-provider'
+import { WhatsappButton } from '@/components/whatsapp-button'
 import { defaultDescription, defaultSeoImage, metadataBase, siteName } from '@/lib/seo'
 import './globals.css'
 
@@ -99,6 +100,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground">
         <AmplifyProvider>
           {children}
+          <WhatsappButton />
         </AmplifyProvider>
 
       </body>

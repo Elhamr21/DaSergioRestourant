@@ -91,7 +91,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href={`tel:${contactInfo.phone}`}
+                  href={`tel:${contactInfo.phoneHref}`}
                   className="flex items-center gap-2 text-gray-text hover:text-gold transition-colors text-sm group"
                 >
                   <Phone className="w-4 h-4 shrink-0 text-gold/70 group-hover:text-gold" />

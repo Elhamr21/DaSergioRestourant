@@ -57,7 +57,7 @@ export function ContactSection() {
               </a>
 
               <a
-                href={`tel:${contactInfo.phone}`}
+                href={`tel:${contactInfo.phoneHref}`}
                 className="flex items-start gap-4 group"
               >
                 <div className="w-12 h-12 rounded-lg bg-gold/10 flex items-center justify-center shrink-0 group-hover:bg-gold/20 transition-colors">
