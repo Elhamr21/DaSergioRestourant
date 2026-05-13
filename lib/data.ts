@@ -330,6 +330,7 @@ export const openingHours: OpeningHours[] = [
 ]
 
 const phoneHref = '+4966149989201'
+const whatsappPhoneHref = '+4917682134111'
 const whatsappMessage = 'Hallo Da Sergio, ich moechte gerne eine Reservierung anfragen.'
 
 export const contactInfo = {
@@ -337,7 +338,7 @@ export const contactInfo = {
   phone: '+49 661 49989201',
   phoneHref,
   whatsappMessage,
-  whatsappUrl: `https://wa.me/${phoneHref.replace('+', '')}?text=${encodeURIComponent(whatsappMessage)}`,
+  whatsappUrl: `https://wa.me/${whatsappPhoneHref.replace('+', '')}?text=${encodeURIComponent(whatsappMessage)}`,
   email: 'info@dasergio-restaurant.de',
   googleMapsUrl: 'https://maps.google.com/?q=Heinrich-von-Bibra-Platz+1b,+36037+Fulda',
 }
