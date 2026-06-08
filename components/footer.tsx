@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { MapPin, Phone, Mail, Clock, Facebook, Instagram } from 'lucide-react'
+import { MapPin, Phone, Mail, Clock } from 'lucide-react'
 import { logoUrl, contactInfo, openingHours } from '@/lib/data'
 
 const navLinks = [
@@ -131,26 +131,7 @@ export function Footer() {
               </div>
             </div>
 
-            {/* Social Links */}
-            <div className="mt-6">
-              <p className="text-foreground font-semibold mb-3">Folgen Sie uns</p>
-              <div className="flex gap-3">
-                <a
-                  href="#"
-                  className="w-10 h-10 rounded-full bg-gold/10 hover:bg-gold/20 flex items-center justify-center text-gold transition-colors"
-                  aria-label="Facebook"
-                >
-                  <Facebook className="w-5 h-5" />
-                </a>
-                <a
-                  href="#"
-                  className="w-10 h-10 rounded-full bg-gold/10 hover:bg-gold/20 flex items-center justify-center text-gold transition-colors"
-                  aria-label="Instagram"
-                >
-                  <Instagram className="w-5 h-5" />
-                </a>
-              </div>
-            </div>
+
           </motion.div>
         </div>
 

@@ -139,24 +139,7 @@ export function GoogleReviews() {
           ))}
         </div>
 
-        {/* CTA */}
-        <motion.div
-          className="text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
-          <a
-            href="https://www.google.com/maps/place/Da+Sergio+Restaurant+%26+Pizzeria"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-gold hover:text-gold-dark transition-colors font-medium"
-          >
-            Alle Rezensionen auf Google anzeigen
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        </motion.div>
+
       </div>
     </section>
   )
