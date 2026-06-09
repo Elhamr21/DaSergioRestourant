@@ -97,7 +97,7 @@ function MenuItemCard({ item, onClick }: { item: MenuItem; onClick: () => void }
         </h3>
         <p className="text-gray-text text-xs line-clamp-1">{item.description}</p>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-gold font-semibold text-sm">{item.price.toFixed(2)}€</span>
+          {/* <span className="text-gold font-semibold text-sm">{item.price.toFixed(2)}€</span> */}
           {item.isVegetarian && <Leaf className="w-3 h-3 text-green-400" />}
           {item.isGlutenFree && <Wheat className="w-3 h-3 text-amber-400" />}
         </div>
@@ -147,7 +147,7 @@ function ItemDetailModal({ item, onClose }: { item: MenuItem; onClose: () => voi
           <h2 className="font-serif text-2xl font-bold text-foreground mt-1 mb-2">{item.name}</h2>
           <p className="text-gray-text text-sm mb-4">{item.description}</p>
           <div className="flex items-center gap-4 mb-4">
-            <span className="text-gold text-2xl font-bold">{item.price.toFixed(2)}€</span>
+            {/* <span className="text-gold text-2xl font-bold">{item.price.toFixed(2)}€</span> */}
             <div className="flex gap-2">
               {item.isVegetarian && (
                 <span className="inline-flex items-center gap-1 bg-green-600/20 text-green-400 px-2 py-1 rounded-full text-xs">
@@ -448,7 +448,7 @@ export default function MenuPage() {
           </div>
 
           {/* Two Column Layout */}
-          <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid gap-8">
             {/* Left Side - Item List */}
             <div className="order-2 lg:order-1">
               <h2 className="text-foreground font-semibold mb-4 flex items-center gap-2">
@@ -466,13 +466,14 @@ export default function MenuPage() {
               </div>
             </div>
 
-            {/* Right Side - Book Viewer */}
+            {/* Right Side - Book Viewer hidden because the scanned menu pages include printed prices.
             <div className="order-1 lg:order-2 bg-deep-green/50 backdrop-blur-sm rounded-2xl p-6 min-h-[500px] lg:min-h-[600px] border border-border">
               <BookViewer 
                 currentPage={currentBookPage} 
                 setCurrentPage={setCurrentBookPage} 
               />
             </div>
+            */}
           </div>
         </div>
       </main>

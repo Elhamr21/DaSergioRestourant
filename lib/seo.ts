@@ -149,11 +149,13 @@ export function getMenuJsonLd() {
             item.isVegan ? 'https://schema.org/VeganDiet' : null,
             item.isGlutenFree ? 'https://schema.org/GlutenFreeDiet' : null,
           ].filter(Boolean),
+          /*
           offers: {
             '@type': 'Offer',
             price: item.price.toFixed(2),
             priceCurrency: 'EUR',
           },
+          */
         })),
       }
     })

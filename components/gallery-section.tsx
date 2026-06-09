@@ -209,7 +209,7 @@ export function GallerySection() {
           >
             Events & Restaurant
           </button>
-          <button
+          {/* <button
             onClick={() => setActiveTab('food-drinks')}
             className={`px-6 py-3 rounded-lg font-medium transition-all ${
               activeTab === 'food-drinks'
@@ -219,6 +219,7 @@ export function GallerySection() {
           >
             Speisekarten
           </button>
+          */}
         </motion.div>
 
         {/* Content */}

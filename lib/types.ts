@@ -2,7 +2,7 @@ export interface MenuItem {
   id: string
   name: string
   description: string
-  price: number
+  price?: number
   category: 'pizza' | 'pasta' | 'antipasti' | 'dolci' | 'bevande' | 'fleisch' | 'fisch' | 'schnitzel' | 'salate'
   imageUrl: string
   allergens: string[]

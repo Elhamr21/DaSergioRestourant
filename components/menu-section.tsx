@@ -292,7 +292,7 @@ export function MenuSection() {
           </AnimatePresence>
         </motion.div>
 
-        {/* Full Menu Link */}
+        {/* Full Menu Link hidden because the scanned menu thumbnails include printed prices.
         <motion.div
           className="text-center mt-12"
           initial={{ opacity: 0 }}
@@ -327,6 +327,7 @@ export function MenuSection() {
             ))}
           </div>
         </motion.div>
+        */}
       </div>
 
       {/* Book Modal */}
