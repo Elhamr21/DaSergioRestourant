@@ -69,8 +69,8 @@ export function getRestaurantJsonLd() {
       {
         '@type': 'OpeningHoursSpecification',
         dayOfWeek,
-        opens: '12:00',
-        closes: '22:30',
+        opens: '09:00',
+        closes: '01:00',
       },
     ],
     menu: `${siteUrl}/menu`,

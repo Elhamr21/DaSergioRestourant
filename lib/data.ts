@@ -326,7 +326,7 @@ export const reviewSummary = {
 }
 
 export const openingHours: OpeningHours[] = [
-  { day: 'Montag - Sonntag', hours: '12:00 - 22:30 Uhr' },
+  { day: 'Montag - Sonntag', hours: '09:00 - 01:00 Uhr' },
 ]
 
 const phoneHref = '+4966149989201'

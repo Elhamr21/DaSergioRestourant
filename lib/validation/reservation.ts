@@ -3,10 +3,12 @@ import { z } from 'zod'
 import { openingHours } from '@/lib/data'
 
 const DEFAULT_TIME_SLOTS = [
+  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
   '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
   '18:00', '18:30', '19:00', '19:30', '20:00', '20:30',
-  '21:00', '21:30', '22:00', '22:30',
+  '21:00', '21:30', '22:00', '22:30', '23:00', '23:30',
+  '00:00', '00:30', '01:00',
 ]
 
 const OPENING_HOURS_PATTERN = /(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/
@@ -40,16 +42,35 @@ function buildTimeSlots() {
     }
 
     const [, opensAt, closesAt] = match
+    let startMinutes = toMinutes(opensAt)
+    let endMinutes = toMinutes(closesAt)
+
+    // Handle past-midnight closing (e.g. 09:00 - 01:00)
+    if (endMinutes <= startMinutes) {
+      endMinutes += 24 * 60
+    }
+
     for (
-      let currentMinutes = toMinutes(opensAt);
-      currentMinutes <= toMinutes(closesAt);
+      let currentMinutes = startMinutes;
+      currentMinutes <= endMinutes;
       currentMinutes += SLOT_INTERVAL_MINUTES
     ) {
-      slots.add(toTimeString(currentMinutes))
+      slots.add(toTimeString(currentMinutes % (24 * 60)))
     }
   }
 
-  return slots.size > 0 ? [...slots].sort() : DEFAULT_TIME_SLOTS
+  if (slots.size === 0) return DEFAULT_TIME_SLOTS
+
+  // Sort with past-midnight times at the end
+  const sorted = [...slots].sort((a, b) => {
+    const aMin = toMinutes(a)
+    const bMin = toMinutes(b)
+    const opensMin = toMinutes([...slots][0] || '09:00')
+    const aAdj = aMin < opensMin ? aMin + 24 * 60 : aMin
+    const bAdj = bMin < opensMin ? bMin + 24 * 60 : bMin
+    return aAdj - bAdj
+  })
+  return sorted
 }
 
 export const TIME_SLOTS = buildTimeSlots()
