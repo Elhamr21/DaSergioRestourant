@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, Phone } from 'lucide-react'
 import Image from 'next/image'
-import { logoUrl, contactInfo } from '@/lib/data'
+import { toast } from 'sonner'
+import { logoUrl, contactInfo, reservationsEnabled, reservationsClosedMessage } from '@/lib/data'
 
 const navLinks = [
   { href: '#hero', label: 'Startseite' },
@@ -34,6 +35,15 @@ export function Navbar() {
       window.location.href = href
     }
     setIsMobileMenuOpen(false)
+  }
+
+  const handleReservationClick = () => {
+    setIsMobileMenuOpen(false)
+    if (!reservationsEnabled) {
+      toast.error(reservationsClosedMessage)
+      return
+    }
+    scrollToSection('#kontakt')
   }
 
   return (
@@ -75,8 +85,13 @@ export function Navbar() {
                 </button>
               ))}
               <button
-                onClick={() => scrollToSection('#kontakt')}
-                className="bg-gold hover:bg-gold-dark text-deep-green font-semibold px-6 py-2.5 rounded-lg transition-all hover:scale-105"
+                onClick={handleReservationClick}
+                aria-disabled={!reservationsEnabled}
+                className={`font-semibold px-6 py-2.5 rounded-lg transition-all ${
+                  reservationsEnabled
+                    ? 'bg-gold hover:bg-gold-dark text-deep-green hover:scale-105'
+                    : 'bg-gold/40 text-deep-green/60 cursor-not-allowed'
+                }`}
               >
                 Reservieren
               </button>
@@ -132,8 +147,13 @@ export function Navbar() {
                   </motion.button>
                 ))}
                 <motion.button
-                  onClick={() => scrollToSection('#kontakt')}
-                  className="w-full bg-gold hover:bg-gold-dark text-deep-green font-semibold px-6 py-3 rounded-lg transition-all mt-4"
+                  onClick={handleReservationClick}
+                  aria-disabled={!reservationsEnabled}
+                  className={`w-full font-semibold px-6 py-3 rounded-lg transition-all mt-4 ${
+                    reservationsEnabled
+                      ? 'bg-gold hover:bg-gold-dark text-deep-green'
+                      : 'bg-gold/40 text-deep-green/60 cursor-not-allowed'
+                  }`}
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}

@@ -5,8 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, ChevronLeft, ChevronRight, Leaf, Wheat, Calendar, X } from 'lucide-react'
-import { menuItems, logoUrl } from '@/lib/data'
+import { toast } from 'sonner'
+import { menuItems, logoUrl, reservationsEnabled, reservationsClosedMessage } from '@/lib/data'
 import type { MenuItem } from '@/lib/types'
+
+function handleReservationLinkClick(event: React.MouseEvent<HTMLAnchorElement>) {
+  if (!reservationsEnabled) {
+    event.preventDefault()
+    toast.error(reservationsClosedMessage)
+  }
+}
+
+const reservationLinkClassName = (base: string) =>
+  reservationsEnabled ? base : `${base} !bg-wine/30 !text-foreground/50 cursor-not-allowed`
 
 const categories = [
   { id: 'all', label: 'Alle', pageIndex: 0 },
@@ -168,7 +179,11 @@ function ItemDetailModal({ item, onClose }: { item: MenuItem; onClose: () => voi
           )}
           <Link
             href="/#kontakt"
-            className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-wine to-wine-dark text-foreground font-semibold px-4 py-3 rounded-lg hover:shadow-lg hover:shadow-wine/30 transition-all"
+            onClick={handleReservationLinkClick}
+            aria-disabled={!reservationsEnabled}
+            className={reservationLinkClassName(
+              'mt-4 w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-wine to-wine-dark text-foreground font-semibold px-4 py-3 rounded-lg hover:shadow-lg hover:shadow-wine/30 transition-all',
+            )}
           >
             <Calendar className="w-5 h-5" />
             Reservieren
@@ -409,7 +424,11 @@ export default function MenuPage() {
           </Link>
           <Link
             href="/#kontakt"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-wine to-wine-dark text-foreground font-medium px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-wine/30 transition-all text-sm"
+            onClick={handleReservationLinkClick}
+            aria-disabled={!reservationsEnabled}
+            className={reservationLinkClassName(
+              'inline-flex items-center gap-2 bg-gradient-to-r from-wine to-wine-dark text-foreground font-medium px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-wine/30 transition-all text-sm',
+            )}
           >
             <Calendar className="w-4 h-4" />
             Reservieren
