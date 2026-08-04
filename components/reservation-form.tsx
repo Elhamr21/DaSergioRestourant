@@ -65,11 +65,12 @@ function SuccessAnimation() {
         <Check className="h-10 w-10 text-green-500" />
       </motion.div>
       <h3 className="mb-2 text-2xl font-semibold text-foreground">
-        Vielen Dank!
+        Wir bestätigen Ihre Reservierung
       </h3>
       <p className="max-w-sm text-center text-gray-text">
-        Ihre Reservierungsanfrage wurde gesendet. Wir melden uns in Kürze bei
-        Ihnen.
+        Vielen Dank für Ihre Reservierung.
+        <br />
+        Ihr Team, Restaurant Da Sergio
       </p>
     </motion.div>
   );
