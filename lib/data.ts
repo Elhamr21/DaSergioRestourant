@@ -325,11 +325,6 @@ export const reviewSummary = {
   reviewCount: 422,
 }
 
-// Temporary switch: set to true once the restaurant resumes taking reservations.
-export const reservationsEnabled = false
-export const reservationsClosedMessage =
-  'Das Restaurant ist derzeit geschlossen. Online-Reservierungen sind vorübergehend nicht möglich.'
-
 export const openingHours: OpeningHours[] = [
   { day: 'Sonntag bis Donnerstag', hours: '12:00 – 22:30 Uhr' },
   { day: 'Freitag und Samstag', hours: '12:00 – 23:00 Uhr' },

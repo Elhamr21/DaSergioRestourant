@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next'
 import { Urbanist, Fraunces } from 'next/font/google'
 import { AmplifyProvider } from '@/components/amplify-provider'
 import { WhatsappButton } from '@/components/whatsapp-button'
-import { Toaster } from '@/components/ui/sonner'
 import { defaultDescription, defaultSeoImage, metadataBase, siteName } from '@/lib/seo'
 import './globals.css'
 
@@ -102,7 +101,6 @@ export default function RootLayout({
         <AmplifyProvider>
           {children}
           <WhatsappButton />
-          <Toaster position="top-center" richColors />
         </AmplifyProvider>
 
       </body>

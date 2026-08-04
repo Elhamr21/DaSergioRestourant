@@ -5,8 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { X, Leaf, Wheat, Info, BookOpen, Calendar } from 'lucide-react'
 import Link from 'next/link'
-import { toast } from 'sonner'
-import { menuItems, foodDrinkMedia, reservationsEnabled, reservationsClosedMessage } from '@/lib/data'
+import { menuItems, foodDrinkMedia } from '@/lib/data'
 import type { MenuItem } from '@/lib/types'
 
 const categories = [
@@ -209,20 +208,8 @@ function BookModal({ item, onClose }: { item: MenuItem; onClose: () => void }) {
                 </Link>
                 <Link
                   href="/#kontakt"
-                  onClick={(event) => {
-                    if (!reservationsEnabled) {
-                      event.preventDefault()
-                      toast.error(reservationsClosedMessage)
-                      return
-                    }
-                    onClose()
-                  }}
-                  aria-disabled={!reservationsEnabled}
-                  className={`flex-1 inline-flex items-center justify-center gap-2 font-semibold px-6 py-3 rounded-lg transition-all ${
-                    reservationsEnabled
-                      ? 'bg-gradient-to-r from-wine to-wine-dark text-foreground hover:shadow-lg hover:shadow-wine/30 hover:scale-[1.02] active:scale-[0.98]'
-                      : 'bg-wine/30 text-foreground/50 cursor-not-allowed'
-                  }`}
+                  onClick={onClose}
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-wine to-wine-dark text-foreground font-semibold px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-wine/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Calendar className="w-5 h-5" />
                   Reservieren

@@ -6,7 +6,6 @@ import { de } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, CalendarDays, Check, Send } from "lucide-react";
 import { generateClient } from "aws-amplify/data";
-import { toast } from "sonner";
 
 import type { Schema } from "@/amplify/data/resource";
 import { Calendar } from "@/components/ui/calendar";
@@ -16,7 +15,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { reservationsEnabled, reservationsClosedMessage } from "@/lib/data";
 import {
   getAvailableTimeSlots,
   TIME_SLOTS,
@@ -143,11 +141,6 @@ export function ReservationForm({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submittingRef.current) {
-      return;
-    }
-
-    if (!reservationsEnabled) {
-      toast.error(reservationsClosedMessage);
       return;
     }
 
@@ -467,13 +460,7 @@ export function ReservationForm({
             <button
               type="submit"
               disabled={isSubmitting}
-              aria-disabled={!reservationsEnabled}
-              className={cn(
-                "flex w-full items-center justify-center gap-2 rounded-lg px-6 py-4 font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100",
-                reservationsEnabled
-                  ? "bg-gold text-deep-green hover:scale-[1.02] hover:bg-gold-dark"
-                  : "bg-gold/40 text-deep-green/60 cursor-not-allowed",
-              )}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold px-6 py-4 font-semibold text-deep-green transition-all hover:scale-[1.02] hover:bg-gold-dark disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
             >
               {isSubmitting ? (
                 <>

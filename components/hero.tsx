@@ -3,12 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, ChevronDown, Clock3 } from "lucide-react";
-import { toast } from "sonner";
-import {
-  restaurantInfo,
-  reservationsEnabled,
-  reservationsClosedMessage,
-} from "@/lib/data";
+import { restaurantInfo } from "@/lib/data";
 import {
   Dialog,
   DialogContent,
@@ -106,14 +101,6 @@ export function Hero() {
     document.querySelector("#kontakt")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleReservationClick = () => {
-    if (!reservationsEnabled) {
-      toast.error(reservationsClosedMessage);
-      return;
-    }
-    setIsReservationOpen(true);
-  };
-
   return (
     <section
       id="hero"
@@ -175,13 +162,8 @@ export function Hero() {
             Speisekarte
           </button>
           <button
-            onClick={handleReservationClick}
-            aria-disabled={!reservationsEnabled}
-            className={`px-8 py-4 font-semibold rounded-lg transition-all duration-300 min-w-[200px] ${
-              reservationsEnabled
-                ? "bg-gold hover:bg-gold-dark text-deep-green hover:scale-105"
-                : "bg-gold/40 text-deep-green/60 cursor-not-allowed"
-            }`}
+            onClick={() => setIsReservationOpen(true)}
+            className="px-8 py-4 bg-gold hover:bg-gold-dark text-deep-green font-semibold rounded-lg transition-all duration-300 hover:scale-105 min-w-[200px]"
           >
             Reservieren
           </button>
