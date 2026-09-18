@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { contactInfo, openingHours } from "@/lib/data";
 import { ReservationForm } from "@/components/reservation-form";
+import { LazyMapEmbed } from "@/components/lazy-map-embed";
 
 export function ContactSection() {
   return (
@@ -102,14 +103,8 @@ export function ContactSection() {
             </div>
 
             <div className="rounded-xl overflow-hidden h-64 lg:h-80">
-              <iframe
+              <LazyMapEmbed
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2535.8!2d9.6752!3d50.5528!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47a2a0a!2sHeinrich-von-Bibra-Platz%201b%2C%2036037%20Fulda!5e0!3m2!1sde!2sde!4v1"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
                 title="Da Sergio Standort"
               />
             </div>
