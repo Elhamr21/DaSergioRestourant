@@ -340,7 +340,7 @@ export const contactInfo = {
   phoneHref,
   whatsappMessage,
   whatsappUrl: `https://wa.me/${whatsappPhoneHref.replace('+', '')}?text=${encodeURIComponent(whatsappMessage)}`,
-  email: 'info@dasergio-restaurant.de',
+  email: 'info@da-sergio-restaurant.de',
   googleMapsUrl: 'https://maps.google.com/?q=Heinrich-von-Bibra-Platz+1b,+36037+Fulda',
 }
 
